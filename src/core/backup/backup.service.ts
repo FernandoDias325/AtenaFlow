@@ -1,0 +1,114 @@
+/**
+ * backup.service.ts — Serviço de exportação e importação manual.
+ *
+ * Exporta a base (Scripts e Categorias) como arquivo JSON.
+ * Importa usando uma transação atômica do IndexedDB para garantir
+ * integridade referencial.
+ *
+ * Estratégia de importação: Merge/Upsert (Mesclar).
+ * - Scripts com mesmo ID são atualizados.
+ * - Scripts novos são adicionados.
+ * - Scripts existentes na extensão mas não no arquivo SÃO MANTIDOS.
+ */
+
+import { getDB } from '../db/schema';
+import type { Script, Category } from '../models/types';
+
+export interface ExportData {
+  version: 1;
+  timestamp: number;
+  categories: Category[];
+  scripts: Script[];
+}
+
+/**
+ * Gera um objeto ExportData com todos os scripts e categorias ativos.
+ */
+export async function generateExportData(): Promise<ExportData> {
+  const db = await getDB();
+  
+  // Buscar tudo
+  const categories = await db.getAll('categories');
+  const allScripts = await db.getAll('scripts');
+  const activeScripts = allScripts.filter(s => s.deletedAt === null);
+
+  return {
+    version: 1,
+    timestamp: Date.now(),
+    categories,
+    scripts: activeScripts
+  };
+}
+
+/**
+ * Dispara o download de um arquivo JSON no navegador.
+ */
+export async function exportBackup(): Promise<void> {
+  const data = await generateExportData();
+  const jsonStr = JSON.stringify(data, null, 2);
+  
+  const blob = new Blob([jsonStr], { type: 'application/json' });
+  const url = URL.createObjectURL(blob);
+  
+  // Fake click
+  const a = document.createElement('a');
+  a.href = url;
+  const dateStr = new Date().toISOString().split('T')[0];
+  a.download = `atenaflow-backup-${dateStr}.json`;
+  a.click();
+  
+  // Cleanup
+  setTimeout(() => URL.revokeObjectURL(url), 5000);
+}
+
+/**
+ * Importa dados de uma string JSON.
+ * Usa transação atômica para mesclar (upsert) categorias e scripts.
+ */
+export async function importBackup(jsonString: string): Promise<void> {
+  let parsed: any;
+  try {
+    parsed = JSON.parse(jsonString);
+  } catch (e) {
+    throw new Error('Arquivo JSON inválido ou corrompido.');
+  }
+
+  // Validação super básica da estrutura (duck typing)
+  if (!parsed || typeof parsed !== 'object') {
+    throw new Error('O formato do arquivo é inválido.');
+  }
+
+  if (parsed.version !== 1 || !Array.isArray(parsed.categories) || !Array.isArray(parsed.scripts)) {
+    throw new Error('Arquivo de backup incompatível ou mal formatado.');
+  }
+
+  const data = parsed as ExportData;
+  const db = await getDB();
+
+  // Iniciar transação de escrita para ambas as tabelas
+  const tx = db.transaction(['categories', 'scripts'], 'readwrite');
+  const categoriesStore = tx.objectStore('categories');
+  const scriptsStore = tx.objectStore('scripts');
+
+  try {
+    // 1. Upsert das Categorias
+    for (const cat of data.categories) {
+      if (typeof cat.id === 'string' && typeof cat.name === 'string') {
+        await categoriesStore.put(cat);
+      }
+    }
+
+    // 2. Upsert dos Scripts
+    for (const script of data.scripts) {
+      if (typeof script.id === 'string' && typeof script.title === 'string' && typeof script.body === 'string') {
+        await scriptsStore.put(script);
+      }
+    }
+
+    await tx.done;
+  } catch (e) {
+    // tx abortada em caso de erro automaticamente (idb)
+    console.error('Erro na transação de importação:', e);
+    throw new Error('Erro ao gravar no banco de dados.');
+  }
+}

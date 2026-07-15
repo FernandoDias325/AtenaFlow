@@ -1,0 +1,13 @@
+node_modules/
+.output/
+.wxt/
+dist/
+build/
+*.zip
+.env
+.DS_Store
+gerador_prints.html
+*.jpg
+*.png
+!public/icon.png
+!assets/
