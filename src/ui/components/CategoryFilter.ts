@@ -2,7 +2,8 @@
  * CategoryFilter.ts — Filtro horizontal de categorias.
  *
  * Renderiza uma barra com chips roláveis para filtrar scripts
- * por categoria rapidamente. O último item é um botão para gerenciar categorias.
+ * por categoria rapidamente. Cada chip exibe um ponto de cor
+ * da categoria. O chip ativo recebe destaque visual.
  *
  * Referência: ARQUITETURA.md — Fase 4
  */
@@ -10,56 +11,120 @@
 import type { Category } from '../../core/models/types';
 import { emit } from '../../store/app-store';
 
+// ─── Paleta de cores de tag ──────────────────────────────────────────────────
+
+/** Paleta fixa de cores para categorias (rotatória). */
+const TAG_COLORS = [
+  'var(--color-tag-blue)',
+  'var(--color-tag-teal)',
+  'var(--color-tag-coral)',
+  'var(--color-tag-violet)',
+  'var(--color-tag-amber)',
+  'var(--color-tag-green)',
+];
+
+/** Retorna a cor de tag para um índice de categoria. */
+export function getTagColor(index: number): string {
+  return TAG_COLORS[index % TAG_COLORS.length] as string;
+}
+
+/** Mapa de ID de categoria → cor, preenchido durante o render. */
+export const categoryColorMap = new Map<string, string>();
+
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
 const STYLES = `
-  .category-filter {
+  .category-chips {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-5);
-    background-color: var(--color-bg);
-    border-bottom: 1px solid var(--color-border);
+    padding: var(--space-2) var(--space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
+    flex-shrink: 0;
+    scrollbar-width: thin;
+    scrollbar-color: var(--color-scrollbar-thumb) transparent;
   }
 
-  .category-filter__select {
-    flex: 1;
-    font-size: var(--font-size-sm);
-    padding: var(--space-1) var(--space-2);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-sm);
-    background-color: var(--color-bg-secondary);
-    color: var(--color-text);
-    outline: none;
-    cursor: pointer;
-    font-family: var(--font-ui);
-    height: 32px;
-  }
-  
-  .category-filter__select:hover,
-  .category-filter__select:focus {
-    border-color: var(--color-primary);
+  .category-chips::-webkit-scrollbar {
+    height: 3px;
   }
 
-  .category-filter__manage {
+  .category-chips::-webkit-scrollbar-track {
+    background: transparent;
+  }
+
+  .category-chips::-webkit-scrollbar-thumb {
+    background: var(--color-scrollbar-thumb);
+    border-radius: var(--radius-full);
+  }
+
+  .category-chip {
     display: inline-flex;
     align-items: center;
-    justify-content: center;
-    width: 28px;
-    height: 28px;
+    gap: 6px;
+    padding: var(--space-1) var(--space-3);
     border-radius: var(--radius-full);
-    color: var(--color-text-tertiary);
-    background-color: transparent;
-    border: 1px dashed var(--color-border);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
     cursor: pointer;
-    flex-shrink: 0;
-    margin-left: auto; /* Empurra para o final se houver espaço */
+    border: 1px solid var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-secondary);
     transition: all var(--transition-fast);
+    flex-shrink: 0;
+    font-family: var(--font-ui);
+    line-height: 1.4;
   }
 
-  .category-filter__manage:hover {
+  .category-chip:hover {
+    border-color: var(--color-border-hover);
     color: var(--color-text);
-    background-color: var(--color-bg-secondary);
+    background-color: var(--color-bg-hover);
+  }
+
+  .category-chip--active {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-soft);
+    color: var(--color-text);
+    font-weight: var(--font-weight-semibold);
+  }
+
+  .category-chip--active:hover {
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-soft);
+  }
+
+  .category-chip__dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
+  }
+
+  .category-chip__manage {
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+    padding: var(--space-1) var(--space-3);
+    border-radius: var(--radius-full);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
+    cursor: pointer;
+    border: 1px dashed var(--color-border);
+    background-color: transparent;
+    color: var(--color-text-tertiary);
+    transition: all var(--transition-fast);
+    flex-shrink: 0;
+    font-family: var(--font-ui);
+    line-height: 1.4;
+  }
+
+  .category-chip__manage:hover {
+    color: var(--color-text-secondary);
+    background-color: var(--color-bg-hover);
     border-style: solid;
   }
 `;
@@ -87,54 +152,75 @@ export interface CategoryFilterOptions {
 }
 
 /**
- * Cria a barra de filtro de categorias.
+ * Cria a barra de filtro de categorias com chips roláveis.
  */
 export function createCategoryFilter(options: CategoryFilterOptions): HTMLElement {
   injectStyles();
 
   const container = document.createElement('div');
-  container.className = 'category-filter';
+  container.className = 'category-chips';
 
   const { categories, selectedCategoryId, onSelect } = options;
 
-  // Dropdown de categorias
-  const select = document.createElement('select');
-  select.className = 'category-filter__select';
-  
-  const allOption = document.createElement('option');
-  allOption.value = 'ALL';
-  allOption.textContent = 'Filtro: Todas as categorias';
-  if (selectedCategoryId === null) allOption.selected = true;
-  select.appendChild(allOption);
+  // Atualiza o mapa de cores
+  categoryColorMap.clear();
+  categories.forEach((cat, index) => {
+    categoryColorMap.set(cat.id, getTagColor(index));
+  });
 
-  for (const cat of categories) {
-    const option = document.createElement('option');
-    option.value = cat.id;
-    option.textContent = `Categoria: ${cat.name}`;
-    if (selectedCategoryId === cat.id) option.selected = true;
-    select.appendChild(option);
+  // Chip "Todas"
+  const allChip = document.createElement('button');
+  allChip.className = `category-chip${selectedCategoryId === null ? ' category-chip--active' : ''}`;
+  allChip.type = 'button';
+  allChip.textContent = 'Todas';
+  allChip.addEventListener('click', () => onSelect(null));
+  container.appendChild(allChip);
+
+  // Chips de cada categoria
+  categories.forEach((cat, index) => {
+    const chip = document.createElement('button');
+    chip.className = `category-chip${selectedCategoryId === cat.id ? ' category-chip--active' : ''}`;
+    chip.type = 'button';
+
+    // Ponto de cor
+    const dot = document.createElement('span');
+    dot.className = 'category-chip__dot';
+    dot.style.backgroundColor = getTagColor(index);
+    chip.appendChild(dot);
+
+    // Nome
+    const nameSpan = document.createElement('span');
+    nameSpan.textContent = cat.name;
+    chip.appendChild(nameSpan);
+
+    chip.addEventListener('click', () => onSelect(cat.id));
+    container.appendChild(chip);
+  });
+
+  // Botão "+ gerenciar"
+  if (categories.length > 0) {
+    const manageBtn = document.createElement('button');
+    manageBtn.className = 'category-chip__manage';
+    manageBtn.type = 'button';
+    manageBtn.title = 'Gerenciar Categorias';
+    manageBtn.setAttribute('aria-label', 'Gerenciar Categorias');
+    manageBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>`;
+    const mText = document.createElement('span');
+    mText.textContent = 'gerenciar';
+    manageBtn.appendChild(mText);
+    manageBtn.addEventListener('click', () => {
+      emit('view-changed', { view: 'categories' });
+    });
+    container.appendChild(manageBtn);
   }
 
-  select.addEventListener('change', (e) => {
-    const val = (e.target as HTMLSelectElement).value;
-    onSelect(val === 'ALL' ? null : val);
-  });
-  
-  container.appendChild(select);
-
-  // Se não houver categorias, mostramos um aviso sutil ou nada
-  // O botão de gerenciar sempre fica
-  const manageBtn = document.createElement('button');
-  manageBtn.className = 'category-filter__manage';
-  manageBtn.type = 'button';
-  manageBtn.title = 'Gerenciar Categorias';
-  manageBtn.setAttribute('aria-label', 'Gerenciar Categorias');
-  manageBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12.22 2h-.44a2 2 0 0 0-2 2v.18a2 2 0 0 1-1 1.73l-.43.25a2 2 0 0 1-2 0l-.15-.08a2 2 0 0 0-2.73.73l-.22.38a2 2 0 0 0 .73 2.73l.15.1a2 2 0 0 1 1 1.72v.51a2 2 0 0 1-1 1.74l-.15.09a2 2 0 0 0-.73 2.73l.22.38a2 2 0 0 0 2.73.73l.15-.08a2 2 0 0 1 2 0l.43.25a2 2 0 0 1 1 1.73V20a2 2 0 0 0 2 2h.44a2 2 0 0 0 2-2v-.18a2 2 0 0 1 1-1.73l.43-.25a2 2 0 0 1 2 0l.15.08a2 2 0 0 0 2.73-.73l.22-.39a2 2 0 0 0-.73-2.73l-.15-.08a2 2 0 0 1-1-1.74v-.5a2 2 0 0 1 1-1.74l.15-.09a2 2 0 0 0 .73-2.73l-.22-.38a2 2 0 0 0-2.73-.73l-.15.08a2 2 0 0 1-2 0l-.43-.25a2 2 0 0 1-1-1.73V4a2 2 0 0 0-2-2z"/><circle cx="12" cy="12" r="3"/></svg>`;
-  manageBtn.addEventListener('click', () => {
-    emit('view-changed', { view: 'categories' });
-  });
-
-  container.appendChild(manageBtn);
+  // Scroll horizontal via roda do mouse (desktop)
+  container.addEventListener('wheel', (e) => {
+    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+      e.preventDefault();
+      container.scrollLeft += e.deltaY;
+    }
+  }, { passive: false });
 
   return container;
 }

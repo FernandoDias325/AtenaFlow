@@ -48,7 +48,7 @@ const STYLES = `
   }
 
   .cat-view__title {
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
   }
@@ -269,11 +269,40 @@ export async function createCategoriesView(): Promise<HTMLElement> {
 
     if (categories.length === 0) {
       const empty = document.createElement('div');
-      empty.style.padding = 'var(--space-4) var(--space-5)';
-      empty.style.color = 'var(--color-text-tertiary)';
-      empty.style.fontSize = 'var(--font-size-sm)';
-      empty.style.textAlign = 'center';
-      empty.textContent = 'Nenhuma categoria cadastrada.';
+      empty.style.cssText = `
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        justify-content: center;
+        text-align: center;
+        padding: var(--space-12) var(--space-6);
+        gap: var(--space-3);
+      `;
+
+      const iconEl = document.createElement('div');
+      iconEl.style.color = 'var(--color-text-tertiary)';
+      iconEl.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+      empty.appendChild(iconEl);
+
+      const titleEl = document.createElement('div');
+      titleEl.style.cssText = `
+        font-size: var(--font-size-md);
+        font-weight: var(--font-weight-semibold);
+        color: var(--color-text);
+      `;
+      titleEl.textContent = 'Nenhuma categoria ainda';
+      empty.appendChild(titleEl);
+
+      const descEl = document.createElement('div');
+      descEl.style.cssText = `
+        font-size: var(--font-size-sm);
+        color: var(--color-text-secondary);
+        max-width: 240px;
+        line-height: var(--line-height-base);
+      `;
+      descEl.textContent = 'Use o campo acima para criar sua primeira categoria.';
+      empty.appendChild(descEl);
+
       listContainer.appendChild(empty);
       return;
     }

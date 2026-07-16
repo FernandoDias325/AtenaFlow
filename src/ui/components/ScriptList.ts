@@ -1,8 +1,8 @@
 /**
  * ScriptList.ts — Lista de ScriptCards.
  *
- * Renderiza todos os scripts ativos em uma lista scrollável.
- * Exibe EmptyState quando não há scripts.
+ * Renderiza todos os scripts ativos em uma lista scrollável
+ * com cards separados e espaçados. Exibe EmptyState quando não há scripts.
  *
  * Referência: ARQUITETURA.md — Seção 6 (ScriptList)
  */
@@ -19,17 +19,14 @@ const STYLES = `
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
+    background-color: var(--color-bg-list, var(--color-bg-secondary));
   }
 
-  .script-list__count {
+  .script-list__cards {
     display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-2) var(--space-4);
-    font-size: var(--font-size-xs);
-    color: var(--color-text-tertiary);
-    border-bottom: 1px solid var(--color-border);
-    background-color: var(--color-bg-secondary);
+    flex-direction: column;
+    gap: var(--space-2);
+    padding: var(--space-3) var(--space-4);
   }
 `;
 
@@ -52,6 +49,8 @@ function injectStyles(): void {
 export interface ScriptListOptions {
   scripts: Script[];
   onRefresh: () => void;
+  /** Mapa de categoryId → cor CSS para o dot de cada card. */
+  categoryColors?: Map<string, string>;
 }
 
 /**
@@ -61,7 +60,7 @@ export interface ScriptListOptions {
 export function createScriptList(options: ScriptListOptions): HTMLElement {
   injectStyles();
 
-  const { scripts, onRefresh } = options;
+  const { scripts, onRefresh, categoryColors } = options;
   const container = document.createElement('div');
   container.className = 'script-list';
 
@@ -76,17 +75,20 @@ export function createScriptList(options: ScriptListOptions): HTMLElement {
     return container;
   }
 
-  // Contador de scripts
-  const countBar = document.createElement('div');
-  countBar.className = 'script-list__count';
-  countBar.textContent = `${scripts.length} script${scripts.length !== 1 ? 's' : ''}`;
-  container.appendChild(countBar);
+  // Container dos cards com gap e padding
+  const cardsWrapper = document.createElement('div');
+  cardsWrapper.className = 'script-list__cards';
 
   // Renderiza os cards
   for (const script of scripts) {
-    const card = createScriptCard({ script, onRefresh });
-    container.appendChild(card);
+    const color = script.categoryId && categoryColors
+      ? categoryColors.get(script.categoryId)
+      : undefined;
+    const card = createScriptCard({ script, onRefresh, categoryColor: color });
+    cardsWrapper.appendChild(card);
   }
+
+  container.appendChild(cardsWrapper);
 
   return container;
 }

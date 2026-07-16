@@ -128,6 +128,17 @@
   /* ─── Overlay ──────────────────────────────────────────────────────── */
   --color-overlay: hsla(30, 10%, 10%, 0.4);
 
+  /* ─── Cores de tag de categoria (informativas) ───────────────────── */
+  --color-tag-blue: hsl(230, 60%, 60%);
+  --color-tag-teal: hsl(162, 45%, 50%);
+  --color-tag-coral: hsl(14, 65%, 60%);
+  --color-tag-violet: hsl(268, 45%, 62%);
+  --color-tag-amber: hsl(38, 75%, 55%);
+  --color-tag-green: hsl(142, 50%, 48%);
+
+  /* ─── Fundo da área de lista ────────────────────────────────────── */
+  --color-bg-list: var(--color-bg-secondary);
+
   /* ─── Scroll ───────────────────────────────────────────────────────── */
   --color-scrollbar-thumb: hsl(30, 5%, 78%);
   --color-scrollbar-track: transparent;
@@ -180,6 +191,17 @@
 
   /* ─── Overlay ──────────────────────────────────────────────────────── */
   --color-overlay: hsla(220, 50%, 3%, 0.6);
+
+  /* ─── Cores de tag de categoria (informativas) ───────────────────── */
+  --color-tag-blue: hsl(230, 65%, 68%);
+  --color-tag-teal: hsl(162, 50%, 58%);
+  --color-tag-coral: hsl(14, 60%, 65%);
+  --color-tag-violet: hsl(268, 50%, 70%);
+  --color-tag-amber: hsl(38, 70%, 62%);
+  --color-tag-green: hsl(142, 45%, 55%);
+
+  /* ─── Fundo da área de lista ────────────────────────────────────── */
+  --color-bg-list: var(--color-bg-secondary);
 
   /* ─── Scroll ───────────────────────────────────────────────────────── */
   --color-scrollbar-thumb: hsl(220, 10%, 30%);

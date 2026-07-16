@@ -50,7 +50,7 @@ const STYLES = `
 
   .trash-view__title {
     flex: 1;
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
   }

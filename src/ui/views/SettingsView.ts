@@ -47,7 +47,7 @@ const STYLES = `
   }
 
   .settings-view__title {
-    font-size: var(--font-size-md);
+    font-size: var(--font-size-xl);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
   }

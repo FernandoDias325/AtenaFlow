@@ -2,7 +2,8 @@
  * ScriptCard.ts — Card individual de um script na lista.
  *
  * Exibe título, prévia truncada do corpo, botão de copiar rápido
- * e botão de editar. Usa textContent para prevenir XSS.
+ * e botão de editar. Cards são blocos separados com cantos arredondados
+ * e ponto de cor da categoria.
  *
  * Referência: ARQUITETURA.md — Seção 6 (ScriptCard)
  */
@@ -24,18 +25,26 @@ const STYLES = `
     align-items: flex-start;
     gap: var(--space-3);
     padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid var(--color-border);
-    border-left: 3px solid transparent;
+    border-radius: var(--radius-lg);
+    border: 1px solid var(--color-border);
     cursor: pointer;
-    transition: background-color var(--transition-fast);
+    transition: all var(--transition-fast);
+    background-color: var(--color-bg);
   }
 
   .script-card--pinned {
-    border-left-color: var(--color-primary);
+    border-color: var(--color-primary);
+    background-color: var(--color-primary-soft);
   }
 
   .script-card:hover {
     background-color: var(--color-bg-hover);
+    border-color: var(--color-border-hover);
+  }
+
+  .script-card--pinned:hover {
+    background-color: var(--color-primary-soft);
+    border-color: var(--color-primary);
   }
 
   .script-card:active {
@@ -48,6 +57,19 @@ const STYLES = `
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+  }
+
+  .script-card__title-row {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+  }
+
+  .script-card__cat-dot {
+    width: 8px;
+    height: 8px;
+    border-radius: var(--radius-full);
+    flex-shrink: 0;
   }
 
   .script-card__title {
@@ -120,7 +142,7 @@ const STYLES = `
     margin-right: auto;
     display: inline-flex;
     align-items: center;
-    gap: 2px;
+    gap: 3px;
   }
 `;
 
@@ -154,6 +176,8 @@ function truncate(text: string, maxLength: number): string {
 export interface ScriptCardOptions {
   script: Script;
   onRefresh: () => void;
+  /** Cor CSS da categoria (ex: 'var(--color-tag-blue)'). */
+  categoryColor?: string;
 }
 
 /**
@@ -163,7 +187,7 @@ export interface ScriptCardOptions {
 export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   injectStyles();
 
-  const { script, onRefresh } = options;
+  const { script, onRefresh, categoryColor } = options;
   const card = document.createElement('div');
   card.className = 'script-card';
   if (script.isPinned) {
@@ -177,10 +201,23 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   const content = document.createElement('div');
   content.className = 'script-card__content';
 
+  // Linha do título com dot de categoria
+  const titleRow = document.createElement('div');
+  titleRow.className = 'script-card__title-row';
+
+  if (categoryColor) {
+    const catDot = document.createElement('span');
+    catDot.className = 'script-card__cat-dot';
+    catDot.style.backgroundColor = categoryColor;
+    titleRow.appendChild(catDot);
+  }
+
   const titleEl = document.createElement('div');
   titleEl.className = 'script-card__title';
   titleEl.textContent = script.title;
-  content.appendChild(titleEl);
+  titleRow.appendChild(titleEl);
+
+  content.appendChild(titleRow);
 
   const previewEl = document.createElement('div');
   previewEl.className = 'script-card__preview';
@@ -193,12 +230,12 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   const actions = document.createElement('div');
   actions.className = 'script-card__actions';
 
-  // Badge de Uso (se houver)
+  // Badge de Uso (se houver) — ícone SVG em vez de emoji
   if (script.usageCount && script.usageCount > 0) {
     const usageBadge = document.createElement('span');
     usageBadge.className = 'script-card__usage';
     usageBadge.title = `Copiado ${script.usageCount} vezes`;
-    usageBadge.innerHTML = `🔥 ${script.usageCount}`;
+    usageBadge.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> ${script.usageCount}`;
     actions.appendChild(usageBadge);
   }
 

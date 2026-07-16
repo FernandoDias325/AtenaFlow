@@ -1,15 +1,16 @@
 /**
  * ListView.ts — View da lista principal de scripts.
  *
- * Compõe o Toolbar + ScriptList, carregando os scripts ativos
- * do repositório e re-renderizando quando o estado muda.
+ * Compõe o Toolbar + SearchBar + Barra unificada (chips de categoria
+ * + contador + ordenação) + ScriptList. Carrega os scripts ativos
+ * do repositório e re-renderiza quando o estado muda.
  *
  * Referência: ARQUITETURA.md — Seção 7 (Lista principal)
  */
 
 import { createToolbar } from '../components/Toolbar';
 import { createSearchBar } from '../components/SearchBar';
-import { createCategoryFilter } from '../components/CategoryFilter';
+import { createCategoryFilter, categoryColorMap } from '../components/CategoryFilter';
 import { createScriptList } from '../components/ScriptList';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import * as CategoriesRepo from '../../core/db/categories.repository';
@@ -26,22 +27,34 @@ const STYLES = `
     overflow: hidden;
   }
 
-  .list-header {
+  .list-view__filter-bar {
     display: flex;
     align-items: center;
-    justify-content: space-between;
-    padding: var(--space-2) var(--space-5);
-    background-color: var(--color-bg);
-    border-bottom: 1px solid var(--color-border);
+    gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
+    overflow-x: auto;
+    overflow-y: hidden;
     flex-shrink: 0;
+    scrollbar-width: none;
+    -ms-overflow-style: none;
   }
 
-  .list-header__count {
+  .list-view__filter-bar::-webkit-scrollbar {
+    display: none;
+  }
+
+  .list-view__meta {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    margin-left: auto;
+    flex-shrink: 0;
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
+    white-space: nowrap;
   }
 
-  .list-header__sort {
+  .list-view__meta-sort {
     font-size: var(--font-size-xs);
     padding: 2px 4px;
     border: 1px solid var(--color-border);
@@ -50,6 +63,7 @@ const STYLES = `
     color: var(--color-text-secondary);
     outline: none;
     cursor: pointer;
+    font-family: var(--font-ui);
   }
 `;
 
@@ -72,7 +86,7 @@ function injectStyles(): void {
 /** Referência do container para permitir refresh sem recriação completa. */
 let listContainer: HTMLElement | null = null;
 let viewContainer: HTMLElement | null = null;
-let categoryFilterContainer: HTMLElement | null = null;
+let filterBarContainer: HTMLElement | null = null;
 
 /** Cache de scripts ativos carregado do banco. */
 let cachedScripts: Script[] = [];
@@ -85,8 +99,6 @@ let currentQuery = '';
 let currentCategory: string | null = null;
 /** Modo de ordenação. */
 let currentSortMode: 'recent' | 'usage' = 'recent';
-
-let listHeaderContainer: HTMLElement | null = null;
 
 /**
  * Cria a view da lista principal.
@@ -106,7 +118,7 @@ export async function createListView(): Promise<HTMLElement> {
   const searchBar = createSearchBar({
     onSearch: (query) => {
       currentQuery = query;
-      renderScriptList();
+      renderFilterBarAndList();
     }
   });
   viewContainer.appendChild(searchBar);
@@ -130,89 +142,83 @@ async function loadDataFromDB(): Promise<void> {
   cachedScripts = await ScriptsRepo.getAllActiveScripts();
   cachedCategories = await CategoriesRepo.getAllCategories();
   
-  // Renderiza a barra de filtro de categorias
-  renderCategoryFilter();
-  // Renderiza a lista
-  await renderScriptList();
+  // Renderiza a barra unificada + lista
+  renderFilterBarAndList();
 }
 
-/** Renderiza a barra de categorias. */
-function renderCategoryFilter(): void {
+/**
+ * Renderiza a barra unificada (chips + contador + ordenação) e a lista.
+ * Chamada sempre que filtro, busca ou ordenação mudam.
+ */
+function renderFilterBarAndList(): void {
   if (!viewContainer) return;
 
-  if (categoryFilterContainer && viewContainer.contains(categoryFilterContainer)) {
-    viewContainer.removeChild(categoryFilterContainer);
+  // Remove barra anterior
+  if (filterBarContainer && viewContainer.contains(filterBarContainer)) {
+    viewContainer.removeChild(filterBarContainer);
   }
 
-  categoryFilterContainer = createCategoryFilter({
-    categories: cachedCategories,
-    selectedCategoryId: currentCategory,
-    onSelect: (categoryId) => {
-      currentCategory = categoryId;
-      renderCategoryFilter(); // Atualiza a seleção visual do chip
-      renderScriptList();     // Filtra a lista
-    }
-  });
-
-  // Insere logo após o SearchBar (filho no índice 2)
-  viewContainer.insertBefore(categoryFilterContainer, viewContainer.children[2]);
-}
-
-/** Aplica busca e ordenação no cache e renderiza a lista. */
-async function renderScriptList(): Promise<void> {
-  if (!viewContainer) {
-    return;
-  }
-
-  // Remove a lista anterior se existir
+  // Remove lista anterior
   if (listContainer && viewContainer.contains(listContainer)) {
     viewContainer.removeChild(listContainer);
   }
 
-  // Aplica filtro de categoria
+  // ─── Filtragem e ordenação ────────────────────────────────────────
   let filtered = cachedScripts;
   if (currentCategory) {
     filtered = filtered.filter(s => s.categoryId === currentCategory);
   }
-
-  // Aplica filtro de busca (se houver texto)
   filtered = filterScripts(filtered, currentQuery);
-
-  // Aplica ordenação
   const sorted = sortScripts(filtered, currentSortMode);
 
-  // Renderiza o List Header (contador e select)
-  if (listHeaderContainer && viewContainer.contains(listHeaderContainer)) {
-    viewContainer.removeChild(listHeaderContainer);
-  }
+  // ─── Barra unificada ──────────────────────────────────────────────
 
-  listHeaderContainer = document.createElement('div');
-  listHeaderContainer.className = 'list-header';
-  
-  const countEl = document.createElement('span');
-  countEl.className = 'list-header__count';
-  countEl.textContent = `${sorted.length} script${sorted.length !== 1 ? 's' : ''}`;
-  listHeaderContainer.appendChild(countEl);
+  // Cria o CategoryFilter (preenche categoryColorMap como efeito colateral)
+  const chipBar = createCategoryFilter({
+    categories: cachedCategories,
+    selectedCategoryId: currentCategory,
+    onSelect: (categoryId) => {
+      currentCategory = categoryId;
+      renderFilterBarAndList();
+    }
+  });
+
+  // Adiciona metadados (contagem + ordenação) ao final da barra de chips
+  const meta = document.createElement('span');
+  meta.className = 'list-view__meta';
+
+  const countText = document.createElement('span');
+  countText.textContent = `${sorted.length} script${sorted.length !== 1 ? 's' : ''}`;
+  meta.appendChild(countText);
+
+  const dot = document.createElement('span');
+  dot.textContent = '·';
+  meta.appendChild(dot);
 
   const sortSelect = document.createElement('select');
-  sortSelect.className = 'list-header__sort';
+  sortSelect.className = 'list-view__meta-sort';
   sortSelect.innerHTML = `
-    <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>Mais Recentes</option>
-    <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>Mais Usados</option>
+    <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>recentes</option>
+    <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>mais usados</option>
   `;
   sortSelect.addEventListener('change', (e) => {
     currentSortMode = (e.target as HTMLSelectElement).value as 'recent' | 'usage';
-    renderScriptList();
+    renderFilterBarAndList();
   });
-  listHeaderContainer.appendChild(sortSelect);
+  meta.appendChild(sortSelect);
 
-  viewContainer.appendChild(listHeaderContainer);
+  chipBar.appendChild(meta);
+  filterBarContainer = chipBar;
+  viewContainer.appendChild(filterBarContainer);
+
+  // ─── Lista de scripts ─────────────────────────────────────────────
 
   listContainer = createScriptList({
     scripts: sorted,
     onRefresh: () => {
       refreshListView();
-    }
+    },
+    categoryColors: categoryColorMap,
   });
 
   viewContainer.appendChild(listContainer);
