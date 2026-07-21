@@ -43,4 +43,28 @@ export default defineBackground(() => {
       await chrome.storage.session.remove(STORAGE_KEY);
     }
   });
+
+  // Listener para mensagens do Content Script
+  chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+    if (message.type === 'GET_ACTIVE_SCRIPTS') {
+      // Usamos import dinâmico para não quebrar a inicialização síncrona
+      import('../src/core/db/scripts.repository').then((repo) => {
+        repo.getAllActiveScripts().then((scripts) => {
+          sendResponse({ scripts });
+        });
+      });
+      return true; // Indica que a resposta será assíncrona
+    }
+
+    if (message.type === 'INCREMENT_USAGE_COUNT' && message.scriptId) {
+      import('../src/core/db/scripts.repository').then((repo) => {
+        repo.incrementUsageCount(message.scriptId).then(() => {
+          sendResponse({ success: true });
+        });
+      });
+      return true;
+    }
+
+    return false;
+  });
 });

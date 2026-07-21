@@ -35,7 +35,7 @@ export interface ScriptDeskDB extends DBSchema {
       'by-isFavorite': number;
       'by-isPinned': number;
       'by-updatedAt': number;
-      'by-deletedAt': number | null;
+      'by-deletedAt': number;
     };
   };
   categories: {

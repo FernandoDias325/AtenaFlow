@@ -397,7 +397,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
           return;
         }
         try {
-          await CategoriesRepo.updateCategory(cat.id, newName);
+          await CategoriesRepo.updateCategory(cat.id, { name: newName });
           emit('toast', { message: 'Categoria atualizada', type: 'success' });
           await renderList();
           emit('categories-changed', undefined);

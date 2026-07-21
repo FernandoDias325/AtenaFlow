@@ -31,7 +31,7 @@ describe('Search Index', () => {
       categoryId: null,
       usageCount: 0,
       ...overrides
-    });
+    } as Script);
 
     it('deve priorizar scripts fixados, depois favoritos, depois data recente (default)', () => {
       const s1 = mockScript('1', { updatedAt: 100 });
@@ -70,9 +70,9 @@ describe('Search Index', () => {
 
   describe('filterScripts', () => {
     const scripts: Script[] = [
-      { id: '1', title: 'Saudação Manhã', body: 'Bom dia cliente', createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0 },
-      { id: '2', title: 'Despedida', body: 'Até logo João', createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0 },
-      { id: '3', title: 'Erro de Pagamento', body: 'Tente novamente', notes: 'Usar com atenção', createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0 },
+      { id: '1', title: 'Saudação Manhã', body: 'Bom dia cliente', createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0 } as Script,
+      { id: '2', title: 'Despedida', body: 'Até logo João', createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0 } as Script,
+      { id: '3', title: 'Erro de Pagamento', body: 'Tente novamente', notes: 'Usar com atenção', createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0 } as Script,
     ];
 
     it('deve retornar todos se query vazia', () => {

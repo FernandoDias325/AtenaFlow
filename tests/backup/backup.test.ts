@@ -21,11 +21,11 @@ describe('Backup Service', () => {
   describe('generateExportData', () => {
     it('deve exportar versão, timestamp, scripts e categorias', async () => {
       const db = await getDB();
-      const cat: Category = { id: 'c1', name: 'Cat 1', order: 0 };
+      const cat: Category = { id: 'c1', name: 'Cat 1', order: 0 } as Category;
       const script: Script = { 
         id: 's1', title: 'Script 1', body: 'body', 
         createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0, deletedAt: null 
-      };
+      } as unknown as Script;
       
       await db.put('categories', cat);
       await db.put('scripts', script);
@@ -58,7 +58,7 @@ describe('Backup Service', () => {
         scripts: [{ 
           id: 's1', title: 'Script Importado', body: 'novo', 
           createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0, deletedAt: null 
-        }]
+        } as unknown as Script]
       });
 
       await importBackup(backupJson);

@@ -124,6 +124,16 @@ export function createToolbar(): HTMLElement {
     emit('view-changed', { view: 'settings' });
   });
 
+  const statsBtn = document.createElement('button');
+  statsBtn.className = 'toolbar__btn';
+  statsBtn.type = 'button';
+  statsBtn.setAttribute('aria-label', 'Estatísticas');
+  statsBtn.title = 'Estatísticas';
+  statsBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`;
+  statsBtn.addEventListener('click', () => {
+    emit('view-changed', { view: 'dashboard' });
+  });
+
   const createBtn = document.createElement('button');
   createBtn.className = 'toolbar__btn';
   createBtn.type = 'button';
@@ -139,6 +149,7 @@ export function createToolbar(): HTMLElement {
     emit('view-changed', { view: 'editor', scriptId: null });
   });
 
+  actions.appendChild(statsBtn);
   actions.appendChild(settingsBtn);
   actions.appendChild(createBtn);
   toolbar.appendChild(actions);

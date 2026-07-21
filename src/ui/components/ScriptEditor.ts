@@ -8,7 +8,7 @@
  * Referência: ARQUITETURA.md — Seção 6 (ScriptEditor)
  */
 
-import type { Script, Category } from '../../core/models/types';
+import type { Script } from '../../core/models/types';
 import { emit } from '../../store/app-store';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import * as CategoriesRepo from '../../core/db/categories.repository';

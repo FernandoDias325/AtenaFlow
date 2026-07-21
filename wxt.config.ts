@@ -5,7 +5,7 @@ export default defineConfig({
   manifest: {
     name: 'AtenaFlow',
     description: 'Seu segundo cérebro de scripts de atendimento. Cadastre, busque e copie em segundos.',
-    version: '1.0.0',
+    version: '1.1.0',
     permissions: [
       'storage',
       'unlimitedStorage'
@@ -16,6 +16,12 @@ export default defineConfig({
     action: {
       default_title: 'Abrir AtenaFlow',
       default_icon: 'icon.png'
-    }
+    },
+    web_accessible_resources: [
+      {
+        resources: ['icon.png'],
+        matches: ['<all_urls>']
+      }
+    ]
   }
 });

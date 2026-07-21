@@ -28,12 +28,12 @@ export interface AppEventMap {
   'toast': ToastPayload;
 }
 
-/** Estado da view atual. */
 export type ViewState =
   | { view: 'list' }
   | { view: 'categories' }
   | { view: 'settings' }
   | { view: 'trash' }
+  | { view: 'dashboard' }
   | { view: 'editor'; scriptId: string | null };
 
 /** Payload para notificações toast. */
