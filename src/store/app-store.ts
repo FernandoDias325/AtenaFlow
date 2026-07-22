@@ -25,7 +25,7 @@ export interface AppEventMap {
   /** Transição de view solicitada. */
   'view-changed': ViewState;
   /** Exibir notificação toast. */
-  'toast': ToastPayload;
+  toast: ToastPayload;
 }
 
 export type ViewState =
@@ -34,6 +34,8 @@ export type ViewState =
   | { view: 'settings' }
   | { view: 'trash' }
   | { view: 'dashboard' }
+  | { view: 'links' }
+  | { view: 'notepad' }
   | { view: 'editor'; scriptId: string | null };
 
 /** Payload para notificações toast. */
@@ -101,10 +103,7 @@ export function subscribe<K extends keyof AppEventMap>(
  * @param event - Nome do evento.
  * @param payload - Dados associados ao evento.
  */
-export function emit<K extends keyof AppEventMap>(
-  event: K,
-  payload: AppEventMap[K]
-): void {
+export function emit<K extends keyof AppEventMap>(event: K, payload: AppEventMap[K]): void {
   const handlerSet = listeners.get(event);
   if (!handlerSet) {
     return;

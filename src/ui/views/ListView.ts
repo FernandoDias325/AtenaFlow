@@ -141,7 +141,7 @@ export async function refreshListView(): Promise<void> {
 async function loadDataFromDB(): Promise<void> {
   cachedScripts = await ScriptsRepo.getAllActiveScripts();
   cachedCategories = await CategoriesRepo.getAllCategories();
-  
+
   // Renderiza a barra unificada + lista
   renderFilterBarAndList();
 }
@@ -151,7 +151,9 @@ async function loadDataFromDB(): Promise<void> {
  * Chamada sempre que filtro, busca ou ordenação mudam.
  */
 function renderFilterBarAndList(): void {
-  if (!viewContainer) return;
+  if (!viewContainer) {
+    return;
+  }
 
   // Remove barra anterior
   if (filterBarContainer && viewContainer.contains(filterBarContainer)) {
@@ -166,7 +168,7 @@ function renderFilterBarAndList(): void {
   // ─── Filtragem e ordenação ────────────────────────────────────────
   let filtered = cachedScripts;
   if (currentCategory) {
-    filtered = filtered.filter(s => s.categoryId === currentCategory);
+    filtered = filtered.filter((s) => s.categoryId === currentCategory);
   }
   filtered = filterScripts(filtered, currentQuery);
   const sorted = sortScripts(filtered, currentSortMode);
@@ -218,7 +220,7 @@ function renderFilterBarAndList(): void {
     onRefresh: () => {
       refreshListView();
     },
-    categoryColors: categoryColorMap,
+    categoryColors: categoryColorMap
   });
 
   viewContainer.appendChild(listContainer);

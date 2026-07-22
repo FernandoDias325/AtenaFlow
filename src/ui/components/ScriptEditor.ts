@@ -325,7 +325,7 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
   const categorySelect = document.createElement('select');
   categorySelect.className = 'editor__select';
   categorySelect.id = 'editor-category';
-  
+
   const defaultOption = document.createElement('option');
   defaultOption.value = '';
   defaultOption.textContent = 'Sem categoria';

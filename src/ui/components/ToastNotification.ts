@@ -161,12 +161,16 @@ function showToast(payload: ToastPayload): void {
   // Auto-remoção após a duração
   setTimeout(() => {
     toastEl.classList.add('toast--exit');
-    
+
     // Tenta remover via evento de animação
-    toastEl.addEventListener('animationend', () => {
-      toastEl.remove();
-    }, { once: true });
-    
+    toastEl.addEventListener(
+      'animationend',
+      () => {
+        toastEl.remove();
+      },
+      { once: true }
+    );
+
     // Fallback de segurança para garantir remoção da DOM caso a animação falhe (ex: aba oculta)
     setTimeout(() => {
       if (document.body.contains(toastEl)) {

@@ -119,7 +119,9 @@ function debounce<T extends (...args: any[]) => void>(
 ): (...args: Parameters<T>) => void {
   let timeout: ReturnType<typeof setTimeout> | null = null;
   return (...args: Parameters<T>) => {
-    if (timeout !== null) clearTimeout(timeout);
+    if (timeout !== null) {
+      clearTimeout(timeout);
+    }
     timeout = setTimeout(() => func(...args), wait);
   };
 }
@@ -181,7 +183,7 @@ export function createSearchBar(options: SearchBarOptions): HTMLElement {
 
   input.addEventListener('input', () => {
     const hasText = input.value.length > 0;
-    
+
     if (hasText) {
       clearBtn.classList.add('search-box__clear--visible');
       shortcut.style.opacity = '0';
@@ -189,7 +191,7 @@ export function createSearchBar(options: SearchBarOptions): HTMLElement {
       clearBtn.classList.remove('search-box__clear--visible');
       shortcut.style.opacity = '1';
     }
-    
+
     handleSearch();
   });
 
@@ -204,11 +206,18 @@ export function createSearchBar(options: SearchBarOptions): HTMLElement {
   // Listener global para o atalho '/'
   const onKeyDown = (e: KeyboardEvent) => {
     // Se não for a tecla '/' ou estiver pressionando ctrl/cmd
-    if (e.key !== '/' || e.ctrlKey || e.metaKey) return;
+    if (e.key !== '/' || e.ctrlKey || e.metaKey) {
+      return;
+    }
 
     // Se o foco já estiver em um input/textarea, não interrompe
     const active = document.activeElement;
-    if (active && (active.tagName === 'INPUT' || active.tagName === 'TEXTAREA' || (active as HTMLElement).isContentEditable)) {
+    if (
+      active &&
+      (active.tagName === 'INPUT' ||
+        active.tagName === 'TEXTAREA' ||
+        (active as HTMLElement).isContentEditable)
+    ) {
       return;
     }
 

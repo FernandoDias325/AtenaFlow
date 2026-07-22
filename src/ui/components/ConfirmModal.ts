@@ -193,11 +193,15 @@ export function showConfirmModal(options: ConfirmModalOptions): Promise<boolean>
 
     function close(result: boolean): void {
       backdrop.classList.add('modal--exit');
-      backdrop.addEventListener('animationend', () => {
-        backdrop.remove();
-        document.removeEventListener('keydown', onKeyDown);
-        resolve(result);
-      }, { once: true });
+      backdrop.addEventListener(
+        'animationend',
+        () => {
+          backdrop.remove();
+          document.removeEventListener('keydown', onKeyDown);
+          resolve(result);
+        },
+        { once: true }
+      );
 
       // Fallback caso a animação não dispare
       setTimeout(() => {

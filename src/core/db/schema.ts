@@ -8,17 +8,12 @@
  */
 
 import { type DBSchema, type IDBPDatabase, openDB } from 'idb';
-import type {
-  Script,
-  Category,
-  CopyHistoryEntry,
-  BackupSnapshot
-} from '../models/types';
+import type { Script, Category, CopyHistoryEntry, BackupSnapshot, Link } from '../models/types';
 
 // ─── Nome e versão do banco ──────────────────────────────────────────────────
 
 export const DB_NAME = 'scriptdesk-db';
-export const DB_VERSION = 1;
+export const DB_VERSION = 2;
 
 // ─── DBSchema tipado ─────────────────────────────────────────────────────────
 
@@ -57,6 +52,13 @@ export interface ScriptDeskDB extends DBSchema {
     value: BackupSnapshot;
     indexes: {
       'by-createdAt': number;
+    };
+  };
+  links: {
+    key: string;
+    value: Link;
+    indexes: {
+      'by-order': number;
     };
   };
 }
@@ -103,7 +105,11 @@ export async function getDB(): Promise<IDBPDatabase<ScriptDeskDB>> {
         backupsStore.createIndex('by-createdAt', 'createdAt');
       }
 
-      // Futuras migrations (ex.: oldVersion < 2) serão adicionadas aqui.
+      // ── Versão 1 → 2: Adicionando links ────────────────────────────────
+      if (oldVersion < 2) {
+        const linksStore = db.createObjectStore('links', { keyPath: 'id' });
+        linksStore.createIndex('by-order', 'order');
+      }
     }
   });
 

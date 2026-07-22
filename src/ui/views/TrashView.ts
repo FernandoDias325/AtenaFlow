@@ -9,7 +9,8 @@
 
 import { emit } from '../../store/app-store';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
-import type { Script } from '../../core/models/types';
+import * as LinksRepo from '../../core/db/links.repository';
+import type { Script, Link } from '../../core/models/types';
 import { showConfirmModal } from '../components/ConfirmModal';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
@@ -151,12 +152,33 @@ const STYLES = `
     color: var(--color-text-tertiary);
     font-size: var(--font-size-sm);
   }
+
+  .trash-item__badge {
+    display: inline-block;
+    padding: 2px 6px;
+    border-radius: 4px;
+    font-size: 10px;
+    font-weight: 600;
+    text-transform: uppercase;
+    margin-left: 8px;
+    vertical-align: middle;
+  }
+  .trash-item__badge--script {
+    background-color: var(--color-primary-soft);
+    color: var(--color-primary);
+  }
+  .trash-item__badge--link {
+    background-color: #e0f2fe;
+    color: #0284c7;
+  }
 `;
 
 let styleInjected = false;
 
 function injectStyles(): void {
-  if (styleInjected) return;
+  if (styleInjected) {
+    return;
+  }
   const style = document.createElement('style');
   style.textContent = STYLES;
   document.head.appendChild(style);
@@ -201,16 +223,31 @@ export async function createTrashView(): Promise<HTMLElement> {
   container.appendChild(content);
 
   // ─── Lógica ────────────────────────────────────────────────────────
-  let deletedScripts: Script[] = [];
+  // ─── Lógica ────────────────────────────────────────────────────────
+  type TrashItem =
+    | { type: 'script'; item: Script; deletedAt: number }
+    | { type: 'link'; item: Link; deletedAt: number };
+
+  let deletedItems: TrashItem[] = [];
 
   async function renderList() {
     content.innerHTML = '';
-    deletedScripts = await ScriptsRepo.getAllDeletedScripts();
+    const deletedScripts = await ScriptsRepo.getAllDeletedScripts();
+    const deletedLinks = await LinksRepo.getAllDeletedLinks();
+
+    deletedItems = [
+      ...deletedScripts.map((s) => ({
+        type: 'script' as const,
+        item: s,
+        deletedAt: s.deletedAt || 0
+      })),
+      ...deletedLinks.map((l) => ({ type: 'link' as const, item: l, deletedAt: l.deletedAt || 0 }))
+    ];
 
     // Ordena pelo momento de exclusão (mais recentes primeiro)
-    deletedScripts.sort((a, b) => (b.deletedAt || 0) - (a.deletedAt || 0));
+    deletedItems.sort((a, b) => b.deletedAt - a.deletedAt);
 
-    if (deletedScripts.length === 0) {
+    if (deletedItems.length === 0) {
       emptyAllBtn.style.display = 'none';
       const emptyState = document.createElement('div');
       emptyState.className = 'trash-empty-state';
@@ -221,22 +258,27 @@ export async function createTrashView(): Promise<HTMLElement> {
 
     emptyAllBtn.style.display = 'block';
 
-    for (const script of deletedScripts) {
+    for (const trashObj of deletedItems) {
+      const { type, item, deletedAt } = trashObj;
+
       const itemEl = document.createElement('div');
       itemEl.className = 'trash-item';
 
       const infoEl = document.createElement('div');
       infoEl.className = 'trash-item__info';
-      
+
       const titleEl = document.createElement('div');
       titleEl.className = 'trash-item__title';
-      titleEl.textContent = script.title;
+      titleEl.innerHTML = `${item.title} <span class="trash-item__badge trash-item__badge--${type}">${type === 'script' ? 'Script' : 'Link'}</span>`;
       infoEl.appendChild(titleEl);
 
       const dateEl = document.createElement('div');
       dateEl.className = 'trash-item__date';
-      const dateStr = new Date(script.deletedAt!).toLocaleDateString('pt-BR', {
-        day: '2-digit', month: '2-digit', hour: '2-digit', minute: '2-digit'
+      const dateStr = new Date(deletedAt).toLocaleDateString('pt-BR', {
+        day: '2-digit',
+        month: '2-digit',
+        hour: '2-digit',
+        minute: '2-digit'
       });
       dateEl.textContent = `Apagado em ${dateStr}`;
       infoEl.appendChild(dateEl);
@@ -251,11 +293,18 @@ export async function createTrashView(): Promise<HTMLElement> {
       restoreBtn.title = 'Restaurar';
       restoreBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
       restoreBtn.addEventListener('click', async () => {
-        await ScriptsRepo.restoreScript(script.id);
-        emit('toast', { message: 'Script restaurado!', type: 'success' });
+        if (type === 'script') {
+          await ScriptsRepo.restoreScript(item.id);
+        } else {
+          await LinksRepo.restoreLink(item.id);
+        }
+        emit('toast', {
+          message: `${type === 'script' ? 'Script' : 'Link'} restaurado!`,
+          type: 'success'
+        });
         await renderList();
       });
-      
+
       const delBtn = document.createElement('button');
       delBtn.className = 'trash-btn trash-btn--delete';
       delBtn.title = 'Excluir Definitivamente';
@@ -263,13 +312,20 @@ export async function createTrashView(): Promise<HTMLElement> {
       delBtn.addEventListener('click', async () => {
         const confirmed = await showConfirmModal({
           title: 'Excluir Definitivamente',
-          message: `Atenção: A exclusão de "${script.title}" não pode ser desfeita. Confirmar exclusão física?`,
+          message: `Atenção: A exclusão de "${item.title}" não pode ser desfeita. Confirmar exclusão física?`,
           confirmLabel: 'Excluir',
           cancelLabel: 'Cancelar'
         });
         if (confirmed) {
-          await ScriptsRepo.hardDeleteScript(script.id);
-          emit('toast', { message: 'Script apagado', type: 'info' });
+          if (type === 'script') {
+            await ScriptsRepo.hardDeleteScript(item.id);
+          } else {
+            await LinksRepo.hardDeleteLink(item.id);
+          }
+          emit('toast', {
+            message: `${type === 'script' ? 'Script' : 'Link'} apagado`,
+            type: 'info'
+          });
           await renderList();
         }
       });
@@ -285,14 +341,18 @@ export async function createTrashView(): Promise<HTMLElement> {
   emptyAllBtn.addEventListener('click', async () => {
     const confirmed = await showConfirmModal({
       title: 'Esvaziar Lixeira',
-      message: 'Todos os scripts da lixeira serão perdidos para sempre. Deseja continuar?',
+      message: 'Todos os itens da lixeira serão perdidos para sempre. Deseja continuar?',
       confirmLabel: 'Esvaziar',
       cancelLabel: 'Cancelar'
     });
 
     if (confirmed) {
-      for (const script of deletedScripts) {
-        await ScriptsRepo.hardDeleteScript(script.id);
+      for (const trashObj of deletedItems) {
+        if (trashObj.type === 'script') {
+          await ScriptsRepo.hardDeleteScript(trashObj.item.id);
+        } else {
+          await LinksRepo.hardDeleteLink(trashObj.item.id);
+        }
       }
       emit('toast', { message: 'Lixeira esvaziada', type: 'success' });
       await renderList();

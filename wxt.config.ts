@@ -3,13 +3,12 @@ import { defineConfig } from 'wxt';
 // Configuração do WXT (wxt.dev)
 export default defineConfig({
   manifest: {
-    name: 'AtenaFlow',
-    description: 'Seu segundo cérebro de scripts de atendimento. Cadastre, busque e copie em segundos.',
+    name: 'Atena Productivity Hub',
+    short_name: 'AtenaFlow',
+    description:
+      'Seu segundo cérebro de scripts de atendimento. Cadastre, busque e copie em segundos.',
     version: '1.1.0',
-    permissions: [
-      'storage',
-      'unlimitedStorage'
-    ],
+    permissions: ['storage', 'unlimitedStorage'],
     icons: {
       '128': 'icon.png'
     },

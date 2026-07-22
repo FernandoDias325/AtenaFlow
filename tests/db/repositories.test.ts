@@ -264,7 +264,11 @@ describe('ScriptsRepository', () => {
       await ScriptsRepo.createScript({ title: 'Script B', body: 'b', categoryId: catId });
       await ScriptsRepo.createScript({ title: 'Outra', body: 'c', categoryId: 'cat-suporte' });
 
-      const deleted = await ScriptsRepo.createScript({ title: 'Excluído', body: 'd', categoryId: catId });
+      const deleted = await ScriptsRepo.createScript({
+        title: 'Excluído',
+        body: 'd',
+        categoryId: catId
+      });
       await ScriptsRepo.softDeleteScript(deleted.id);
 
       const scripts = await ScriptsRepo.getScriptsByCategory(catId);

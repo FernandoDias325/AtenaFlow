@@ -100,6 +100,24 @@ export interface AutoBackupConfig {
   frequencyHours: number;
 }
 
+// ─── Links ───────────────────────────────────────────────────────────────────
+
+/** Um link útil salvo pelo usuário. */
+export interface Link {
+  /** Identificador único (UUID v4). */
+  id: string;
+  /** Título/nome do link. */
+  title: string;
+  /** URL destino. */
+  url: string;
+  /** Posição de ordenação. */
+  order: number;
+  /** Timestamp de criação (epoch ms). */
+  createdAt: number;
+  /** Timestamp de exclusão lógica (epoch ms) ou null se ativo. */
+  deletedAt?: number | null;
+}
+
 /** Configurações globais da extensão (armazenadas em chrome.storage.local). */
 export interface Settings {
   /** Tema visual da aplicação. */

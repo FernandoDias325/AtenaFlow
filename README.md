@@ -1,42 +1,43 @@
 <div align="center">
   <img src="public/icon.png" width="128" alt="AtenaFlow Logo" />
-  
-  # AtenaFlow
-  
-  **O seu segundo cérebro de scripts de atendimento e produtividade.**
+
+# AtenaFlow (Atena Productivity Hub)
+
+**O seu segundo cérebro de scripts de atendimento, links rápidos e anotações produtivas.**
 </div>
 
 ---
 
-AtenaFlow é uma extensão para Google Chrome ultra-rápida (desenvolvida com o manifesto V3) focada em guardar e organizar seus roteiros e textos de atendimento. Cadastre, classifique por categorias e copie em milissegundos sem perder o foco na aba principal!
+AtenaFlow é uma extensão para Google Chrome ultra-rápida (desenvolvida com o manifesto V3) focada em guardar e organizar seus roteiros, URLs importantes e anotações. Cadastre, classifique por categorias e copie em milissegundos sem perder o foco na aba principal!
 
-## 🚀 Recursos
-- 🗂️ **Categorias Customizadas**: Organize roteiros por área, departamento ou fase do funil.
-- ⚡ **Pesquisa Instantânea**: Digite e veja os scripts filtrarem na mesma hora.
-- 📋 **Cópia Rápida (1 Clique)**: Botão de cópia integrado que avisa visualmente com *toasts*.
-- 🌗 **Tema Escuro Nativo**: Alternância entre Light e Dark Mode em um clique.
-- 💾 **Backup JSON**: Exporte todos os seus dados e importe-os em outra máquina.
+## 🚀 Recursos Principais
 
-## 🛠️ Tecnologias
+- 📝 **Scripts e Templates**: Gerencie seus roteiros de atendimento por categorias. Copie textos em 1 clique com suporte a injeção nativa em plataformas como WhatsApp Web.
+- 🔗 **Links Rápidos (Novo)**: Uma aba dedicada para salvar, categorizar e acessar seus links e URLs mais acessados do dia a dia.
+- 📓 **Bloco de Notas Avançado (Novo)**: Um editor de texto rico integrado (Rich Text) com suporte a negrito, marca-texto, listas, tabelas e blocos de código. Suas notas são salvas automaticamente a cada tecla digitada!
+- 🗂️ **Categorias Customizadas**: Organize tudo por área, departamento ou fase do funil.
+- ⚡ **Pesquisa Instantânea**: Digite e veja os resultados filtrarem em tempo real.
+- ♻️ **Lixeira Inteligente**: Recuperação de scripts e links apagados acidentalmente.
+- 🌗 **Tema Escuro Nativo**: Alternância entre Light e Dark Mode fluida.
+- 💾 **Backup Completo em JSON**: Exporte todos os seus dados (scripts, links, categorias) e importe-os com mesclagem inteligente.
+
+## 🛠️ Tecnologias Utilizadas
+
 - [WXT (Web Extension Tools)](https://wxt.dev)
-- TypeScript
-- Vanilla JS & CSS Modules (Design Tokens)
-- IndexedDB (`idb`)
+- TypeScript Puro (Sem frameworks pesados)
+- Vanilla JS & CSS Modules com Design Tokens
+- Banco de Dados Local (IndexedDB via `idb`)
+- Arquitetura de Eventos Customizada (Pub/Sub)
 
 ## 🔐 Política de Privacidade
 
-A extensão **AtenaFlow** foi construída visando a segurança, autonomia e a **total privacidade** dos usuários.
+O AtenaFlow é uma ferramenta 100% focada na **privacidade** e no armazenamento local (offline). Nós não possuímos servidores e não coletamos seus dados.
 
-**1. Armazenamento 100% Local**
-Todo e qualquer dado, categoria, texto ou observação inserido na extensão é gravado única e exclusivamente no armazenamento local do seu próprio navegador (via IndexedDB e `chrome.storage.session`). Nós não possuímos banco de dados em nuvem.
+Leia nossa [Política de Privacidade completa aqui](PRIVACY.md).
 
-**2. Nenhuma Coleta de Dados**
-Nós não coletamos, não rastreamos, não interceptamos e não compartilhamos nenhum dado digitado, informações financeiras ou informações de identificação pessoal (PII) dos usuários com nenhum servidor externo. 
+## 🚀 Como instalar para desenvolvimento
 
-**3. Execução Offline e Fechada**
-O AtenaFlow roda inteiramente dentro da máquina do usuário. Nenhum código remoto (CDNs ou scripts de rastreamento de terceiros) é carregado de fora do pacote da extensão.
-
-**4. Uso dos Dados**
-Os textos criados são utilizados unicamente para o benefício e uso pessoal do próprio usuário durante a navegação. Nenhuma informação é vendida a terceiros sob nenhuma circunstância.
-
-*Se tiver alguma dúvida sobre o manuseio de dados, por favor abra uma [Issue](#) neste repositório.*
+1. Clone o repositório.
+2. Instale as dependências com `npm install`.
+3. Rode `npm run dev` para iniciar o ambiente de desenvolvimento em tempo real (WXT).
+4. Para gerar o build de produção (arquivo ZIP para a Chrome Web Store), rode `npm run zip`.

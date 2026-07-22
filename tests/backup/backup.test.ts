@@ -22,16 +22,24 @@ describe('Backup Service', () => {
     it('deve exportar versão, timestamp, scripts e categorias', async () => {
       const db = await getDB();
       const cat: Category = { id: 'c1', name: 'Cat 1', order: 0 } as Category;
-      const script: Script = { 
-        id: 's1', title: 'Script 1', body: 'body', 
-        createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0, deletedAt: null 
+      const script: Script = {
+        id: 's1',
+        title: 'Script 1',
+        body: 'body',
+        createdAt: 1,
+        updatedAt: 1,
+        isFavorite: false,
+        isPinned: false,
+        categoryId: null,
+        usageCount: 0,
+        deletedAt: null
       } as unknown as Script;
-      
+
       await db.put('categories', cat);
       await db.put('scripts', script);
 
       const data = await generateExportData();
-      expect(data.version).toBe(1);
+      expect(data.version).toBe(2);
       expect(data.categories.length).toBe(1);
       expect(data.categories[0]?.id).toBe('c1');
       expect(data.scripts.length).toBe(1);
@@ -47,7 +55,9 @@ describe('Backup Service', () => {
 
     it('deve falhar se estrutura incorreta', async () => {
       await expect(importBackup('{}')).rejects.toThrow('Arquivo de backup incompatível');
-      await expect(importBackup('{"version": 1}')).rejects.toThrow('Arquivo de backup incompatível');
+      await expect(importBackup('{"version": 1}')).rejects.toThrow(
+        'Arquivo de backup incompatível'
+      );
     });
 
     it('deve mesclar dados validos', async () => {
@@ -55,10 +65,20 @@ describe('Backup Service', () => {
         version: 1,
         timestamp: 123,
         categories: [{ id: 'c1', name: 'Cat 1', order: 0 }],
-        scripts: [{ 
-          id: 's1', title: 'Script Importado', body: 'novo', 
-          createdAt: 1, updatedAt: 1, isFavorite: false, isPinned: false, categoryId: null, usageCount: 0, deletedAt: null 
-        } as unknown as Script]
+        scripts: [
+          {
+            id: 's1',
+            title: 'Script Importado',
+            body: 'novo',
+            createdAt: 1,
+            updatedAt: 1,
+            isFavorite: false,
+            isPinned: false,
+            categoryId: null,
+            usageCount: 0,
+            deletedAt: null
+          } as unknown as Script
+        ]
       });
 
       await importBackup(backupJson);

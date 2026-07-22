@@ -8,7 +8,6 @@
 
 import { emit } from '../../store/app-store';
 import { exportBackup, importBackup } from '../../core/backup/backup.service';
-import * as ScriptsRepo from '../../core/db/scripts.repository';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -166,7 +165,7 @@ export async function createSettingsView(): Promise<HTMLElement> {
   // Seção: Lixeira / Workspace
   const trashSection = document.createElement('div');
   trashSection.className = 'settings-section';
-  
+
   const trashTitle = document.createElement('h3');
   trashTitle.className = 'settings-section__title';
   trashTitle.textContent = 'Lixeira';
@@ -174,7 +173,8 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
   const trashDesc = document.createElement('p');
   trashDesc.className = 'settings-section__desc';
-  trashDesc.textContent = 'Visualize e restaure scripts que foram apagados acidentalmente, ou esvazie a lixeira para liberar espaço.';
+  trashDesc.textContent =
+    'Visualize e restaure scripts que foram apagados acidentalmente, ou esvazie a lixeira para liberar espaço.';
   trashSection.appendChild(trashDesc);
 
   const trashActions = document.createElement('div');
@@ -207,7 +207,7 @@ export async function createSettingsView(): Promise<HTMLElement> {
   themeSection.appendChild(themeDesc);
 
   const currentTheme = localStorage.getItem('atenaflow-theme') || 'light';
-  
+
   const themeBtn = document.createElement('button');
   themeBtn.className = 'settings-btn settings-btn--outline';
   // Configura ícone baseado no tema atual
@@ -227,14 +227,14 @@ export async function createSettingsView(): Promise<HTMLElement> {
     localStorage.setItem('atenaflow-theme', newTheme);
     setBtnIcon(newTheme);
   });
-  
+
   themeSection.appendChild(themeBtn);
   content.appendChild(themeSection);
 
   // Seção: Backup
   const backupSection = document.createElement('div');
   backupSection.className = 'settings-section';
-  
+
   const backupTitle = document.createElement('h3');
   backupTitle.className = 'settings-section__title';
   backupTitle.textContent = 'Backup de Dados';
@@ -242,7 +242,8 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
   const backupDesc = document.createElement('p');
   backupDesc.className = 'settings-section__desc';
-  backupDesc.textContent = 'Exporte seus scripts e categorias para um arquivo seguro, ou importe de um arquivo existente. A importação irá mesclar os dados, preservando scripts que você já possui.';
+  backupDesc.textContent =
+    'Exporte seus scripts, links e categorias para um arquivo seguro, ou importe de um arquivo existente. A importação irá mesclar os dados, preservando os itens que você já possui.';
   backupSection.appendChild(backupDesc);
 
   const actionsContainer = document.createElement('div');
@@ -270,12 +271,16 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
   importInput.addEventListener('change', (e) => {
     const file = (e.target as HTMLInputElement).files?.[0];
-    if (!file) return;
+    if (!file) {
+      return;
+    }
 
     const reader = new FileReader();
     reader.onload = async (evt) => {
       const result = evt.target?.result;
-      if (typeof result !== 'string') return;
+      if (typeof result !== 'string') {
+        return;
+      }
 
       try {
         await importBackup(result);
@@ -301,26 +306,6 @@ export async function createSettingsView(): Promise<HTMLElement> {
   actionsContainer.appendChild(importInput);
   backupSection.appendChild(actionsContainer);
 
-  // Seção: Métricas
-  const metricsSection = document.createElement('div');
-  metricsSection.className = 'settings-section';
-
-  const metricsTitle = document.createElement('h3');
-  metricsTitle.className = 'settings-section__title';
-  metricsTitle.textContent = 'Métricas de Uso';
-  metricsSection.appendChild(metricsTitle);
-
-  const metricsDesc = document.createElement('p');
-  metricsDesc.className = 'settings-section__desc';
-  
-  // Calcula o total de usos iterando pelos scripts ativos
-  const activeScripts = await ScriptsRepo.getAllActiveScripts();
-  const totalUses = activeScripts.reduce((acc, script) => acc + (script.usageCount || 0), 0);
-  
-  metricsDesc.innerHTML = `Nós adoramos economizar o seu tempo! Até agora, você já copiou scripts um total de <strong>${totalUses} vezes</strong>. <br><br> Para ver quais são os seus scripts favoritos na prática, basta usar o novo filtro "Mais Usados" na tela principal.`;
-  metricsSection.appendChild(metricsDesc);
-
-  content.appendChild(metricsSection);
   content.appendChild(trashSection);
   content.appendChild(backupSection);
   container.appendChild(content);

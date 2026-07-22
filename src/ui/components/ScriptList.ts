@@ -81,9 +81,8 @@ export function createScriptList(options: ScriptListOptions): HTMLElement {
 
   // Renderiza os cards
   for (const script of scripts) {
-    const color = script.categoryId && categoryColors
-      ? categoryColors.get(script.categoryId)
-      : undefined;
+    const color =
+      script.categoryId && categoryColors ? categoryColors.get(script.categoryId) : undefined;
     const card = createScriptCard({ script, onRefresh, categoryColor: color });
     cardsWrapper.appendChild(card);
   }

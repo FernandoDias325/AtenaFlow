@@ -227,7 +227,9 @@ export async function createCategoriesView(): Promise<HTMLElement> {
 
   addBtn.addEventListener('click', async () => {
     const name = inputEl.value.trim();
-    if (!name) return;
+    if (!name) {
+      return;
+    }
 
     try {
       await CategoriesRepo.createCategory({ name, color: '#6366f1' }); // Cor primária padrão
@@ -256,7 +258,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
   const listContainer = document.createElement('div');
   listContainer.className = 'cat-view__list';
   content.appendChild(listContainer);
-  
+
   container.appendChild(content);
 
   // ─── Lógica da Lista ───────────────────────────────────────────────
@@ -339,11 +341,11 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       const editBtn = document.createElement('button');
       editBtn.className = 'cat-item__btn';
       editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
-      
+
       const delBtn = document.createElement('button');
       delBtn.className = 'cat-item__btn cat-item__btn--delete';
       delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
-      
+
       actionsEl.appendChild(upBtn);
       actionsEl.appendChild(downBtn);
       actionsEl.appendChild(editBtn);
@@ -354,12 +356,12 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       editInput.className = 'cat-item__edit-input';
       editInput.type = 'text';
       editInput.value = cat.name;
-      
+
       const saveBtn = document.createElement('button');
       saveBtn.className = 'cat-item__btn';
       saveBtn.style.color = 'var(--color-success)';
       saveBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M20 6 9 17l-5-5"/></svg>`;
-      
+
       const cancelBtn = document.createElement('button');
       cancelBtn.className = 'cat-item__btn';
       cancelBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -370,7 +372,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
         isEditing = !isEditing;
         itemEl.innerHTML = '';
         actionsEl.innerHTML = '';
-        
+
         if (isEditing) {
           itemEl.appendChild(editInput);
           actionsEl.appendChild(saveBtn);
@@ -389,7 +391,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
 
       editBtn.addEventListener('click', toggleEdit);
       cancelBtn.addEventListener('click', toggleEdit);
-      
+
       saveBtn.addEventListener('click', async () => {
         const newName = editInput.value.trim();
         if (!newName || newName === cat.name) {
@@ -408,8 +410,12 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       });
 
       editInput.addEventListener('keydown', (e) => {
-        if (e.key === 'Enter') saveBtn.click();
-        if (e.key === 'Escape') cancelBtn.click();
+        if (e.key === 'Enter') {
+          saveBtn.click();
+        }
+        if (e.key === 'Escape') {
+          cancelBtn.click();
+        }
       });
 
       delBtn.addEventListener('click', async () => {
@@ -435,18 +441,20 @@ export async function createCategoriesView(): Promise<HTMLElement> {
   }
 
   async function handleReorder(fromIndex: number, toIndex: number) {
-    if (toIndex < 0 || toIndex >= categories.length) return;
-    
+    if (toIndex < 0 || toIndex >= categories.length) {
+      return;
+    }
+
     // Clona o array original
     const newOrder = [...categories];
     // Troca
     const temp = newOrder[fromIndex];
     newOrder[fromIndex] = newOrder[toIndex] as Category;
     newOrder[toIndex] = temp as Category;
-    
+
     // Extrai os IDs na nova ordem
-    const orderedIds = newOrder.map(c => c.id);
-    
+    const orderedIds = newOrder.map((c) => c.id);
+
     try {
       await CategoriesRepo.reorderCategories(orderedIds);
       await renderList();

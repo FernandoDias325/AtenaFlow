@@ -1,6 +1,6 @@
 # Documento de Arquitetura — Extensão de Scripts de Atendimento
 
-*Nome de trabalho: **ScriptDesk** (é só um placeholder — troque à vontade quando quiser)*
+_Nome de trabalho: **ScriptDesk** (é só um placeholder — troque à vontade quando quiser)_
 
 Este documento cobre arquitetura, dados, telas e roadmap do projeto.
 
@@ -38,12 +38,12 @@ Este documento cobre arquitetura, dados, telas e roadmap do projeto.
 
 A extensão tem 4 peças, todas dentro do Manifest V3:
 
-| Peça | Papel |
-|---|---|
-| **Janela Dedicada (Window)** | Superfície principal do dia a dia: abrir → buscar → copiar → fechar. Abre em uma janela própria da extensão iniciada pelo navegador (via `chrome.windows.create`), permitindo minimizar, maximizar, redimensionar, alternar com Alt+Tab e mantendo-se aberta ao clicar fora. |
-| **Workspace** (página completa, aberta numa aba) | Reaproveita os mesmos componentes da Janela Dedicada, mas com espaço de sobra pra gerenciar categorias, importar/exportar, configurações e lixeira. Acessada por um botão "Abrir gerenciador completo". |
-| **Service Worker** (background) | Não guarda estado de UI. Cuida do ciclo de vida da Janela Dedicada (abrir uma nova ou focar na existente quando o ícone da extensão é clicado), atalhos de teclado globais, backup automático agendado, badge do ícone. |
-| **IndexedDB** | Fonte única de verdade dos dados: scripts, categorias, histórico, backups internos. |
+| Peça                                             | Papel                                                                                                                                                                                                                                                                        |
+| ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| **Janela Dedicada (Window)**                     | Superfície principal do dia a dia: abrir → buscar → copiar → fechar. Abre em uma janela própria da extensão iniciada pelo navegador (via `chrome.windows.create`), permitindo minimizar, maximizar, redimensionar, alternar com Alt+Tab e mantendo-se aberta ao clicar fora. |
+| **Workspace** (página completa, aberta numa aba) | Reaproveita os mesmos componentes da Janela Dedicada, mas com espaço de sobra pra gerenciar categorias, importar/exportar, configurações e lixeira. Acessada por um botão "Abrir gerenciador completo".                                                                      |
+| **Service Worker** (background)                  | Não guarda estado de UI. Cuida do ciclo de vida da Janela Dedicada (abrir uma nova ou focar na existente quando o ícone da extensão é clicado), atalhos de teclado globais, backup automático agendado, badge do ícone.                                                      |
+| **IndexedDB**                                    | Fonte única de verdade dos dados: scripts, categorias, histórico, backups internos.                                                                                                                                                                                          |
 
 ```mermaid
 flowchart LR
@@ -75,21 +75,21 @@ Por que separar assim: Janela Dedicada e Workspace **compartilham 100% do códig
 
 ### 1.2 Decisões técnicas e por quê
 
-| Camada | Escolha | Por quê |
-|---|---|---|
-| Linguagem | **TypeScript** | Tipagem ajuda a manter Clean Code/SOLID conforme o projeto cresce; contratos entre módulos ficam explícitos. |
-| Framework de build | **WXT** (wxt.dev) | Em 2026 é a opção mais recomendada pra extensões novas: convenções por arquivo (inspirado em Nuxt), Vite por baixo, builds pra Chrome e Edge a partir do mesmo código, e não te rota em nenhuma lib de UI — funciona liso com TypeScript puro. |
-| Armazenamento | **IndexedDB** via wrapper **`idb`** (Jake Archibald) | O `idb` é minúsculo (~1,2 KB), tipado em TypeScript via `DBSchema`, e elimina o boilerplate de callbacks do IndexedDB puro sem esconder a API por baixo. |
-| Configurações leves | **`chrome.storage.local`** | Só pra tema, atalhos, frequência de backup — nunca pra os scripts em si. |
-| UI | **TypeScript vanilla** — funções que retornam DOM + um pub-sub simples escrito à mão (sem framework de runtime) | Zero dependência de framework = bundle mínimo e inicialização instantânea. Pro tamanho desta aplicação isso é suficiente e mais fácil de manter. |
-| Ícones | SVGs do conjunto **Lucide**, inline | Leve, sem fonte de ícone, combina com a estética Notion/VS Code. |
-| Testes | **Vitest** | Roda no mesmo ecossistema do Vite/WXT; ótimo pra testar a camada de dados e a validação de import/export isoladamente, sem precisar de navegador. |
-| Qualidade | **ESLint + Prettier** desde o dia 1 | Consistência de código automática, sem depender só de revisão manual. |
+| Camada              | Escolha                                                                                                         | Por quê                                                                                                                                                                                                                                        |
+| ------------------- | --------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Linguagem           | **TypeScript**                                                                                                  | Tipagem ajuda a manter Clean Code/SOLID conforme o projeto cresce; contratos entre módulos ficam explícitos.                                                                                                                                   |
+| Framework de build  | **WXT** (wxt.dev)                                                                                               | Em 2026 é a opção mais recomendada pra extensões novas: convenções por arquivo (inspirado em Nuxt), Vite por baixo, builds pra Chrome e Edge a partir do mesmo código, e não te rota em nenhuma lib de UI — funciona liso com TypeScript puro. |
+| Armazenamento       | **IndexedDB** via wrapper **`idb`** (Jake Archibald)                                                            | O `idb` é minúsculo (~1,2 KB), tipado em TypeScript via `DBSchema`, e elimina o boilerplate de callbacks do IndexedDB puro sem esconder a API por baixo.                                                                                       |
+| Configurações leves | **`chrome.storage.local`**                                                                                      | Só pra tema, atalhos, frequência de backup — nunca pra os scripts em si.                                                                                                                                                                       |
+| UI                  | **TypeScript vanilla** — funções que retornam DOM + um pub-sub simples escrito à mão (sem framework de runtime) | Zero dependência de framework = bundle mínimo e inicialização instantânea. Pro tamanho desta aplicação isso é suficiente e mais fácil de manter.                                                                                               |
+| Ícones              | SVGs do conjunto **Lucide**, inline                                                                             | Leve, sem fonte de ícone, combina com a estética Notion/VS Code.                                                                                                                                                                               |
+| Testes              | **Vitest**                                                                                                      | Roda no mesmo ecossistema do Vite/WXT; ótimo pra testar a camada de dados e a validação de import/export isoladamente, sem precisar de navegador.                                                                                              |
+| Qualidade           | **ESLint + Prettier** desde o dia 1                                                                             | Consistência de código automática, sem depender só de revisão manual.                                                                                                                                                                          |
 
 ### 1.3 Requisitos não funcionais
 
 - **Desempenho:** busca responde na hora mesmo com centenas de scripts; renderiza a lista quase instantaneamente.
-- **Baixo consumo:** sem framework de UI pesado; sem *polling* — tudo baseado em eventos (`chrome.storage.onChanged`, alarms).
+- **Baixo consumo:** sem framework de UI pesado; sem _polling_ — tudo baseado em eventos (`chrome.storage.onChanged`, alarms).
 - **Privacidade:** 100% local nesta fase, nenhuma chamada de rede, nenhum dado sai da máquina.
 - **Acessibilidade:** navegação completa por teclado, foco visível, contraste adequado nos dois temas.
 - **Segurança contra ação destrutiva:** excluir, ou importar substituindo tudo, sempre pede confirmação explícita.
@@ -179,21 +179,21 @@ flowchart TD
 
 ### 4.1 Estratégia de persistência e backup
 
-* **unlimitedStorage:** Permissão declarada no manifest para remover restrições de cota do IndexedDB.
-* **Backup Automático Interno:** Roda no service worker via `chrome.alarms` e armazena snapshots compactados de forma rotativa (últimas 7 versões) dentro do próprio IndexedDB.
-* **Exportação Manual:** Arquivo `.json` gerado sob demanda para que o usuário possa fazer download.
+- **unlimitedStorage:** Permissão declarada no manifest para remover restrições de cota do IndexedDB.
+- **Backup Automático Interno:** Roda no service worker via `chrome.alarms` e armazena snapshots compactados de forma rotativa (últimas 7 versões) dentro do próprio IndexedDB.
+- **Exportação Manual:** Arquivo `.json` gerado sob demanda para que o usuário possa fazer download.
 
 ### 4.2 Schema (Object Stores)
 
 Banco: `scriptdesk-db`, versão 1.
 
-| Object Store | Campos principais | Índices |
-|---|---|---|
-| `scripts` | `id`, `title`, `categoryId`, `body`, `tags[]`, `colorTag?`, `isFavorite`, `isPinned`, `usageCount`, `notes?`, `createdAt`, `updatedAt`, `deletedAt` | `categoryId`, `isFavorite`, `isPinned`, `updatedAt`, `deletedAt` |
-| `categories` | `id`, `name`, `color`, `order`, `createdAt` | `order` |
-| `copyHistory` | `id`, `scriptId`, `copiedAt` | `copiedAt` |
-| `backups` | `id`, `createdAt`, `schemaVersion`, `sizeBytes`, `data` | `createdAt` |
-| `settings` | linha única com configurações da extensão | — |
+| Object Store  | Campos principais                                                                                                                                   | Índices                                                          |
+| ------------- | --------------------------------------------------------------------------------------------------------------------------------------------------- | ---------------------------------------------------------------- |
+| `scripts`     | `id`, `title`, `categoryId`, `body`, `tags[]`, `colorTag?`, `isFavorite`, `isPinned`, `usageCount`, `notes?`, `createdAt`, `updatedAt`, `deletedAt` | `categoryId`, `isFavorite`, `isPinned`, `updatedAt`, `deletedAt` |
+| `categories`  | `id`, `name`, `color`, `order`, `createdAt`                                                                                                         | `order`                                                          |
+| `copyHistory` | `id`, `scriptId`, `copiedAt`                                                                                                                        | `copiedAt`                                                       |
+| `backups`     | `id`, `createdAt`, `schemaVersion`, `sizeBytes`, `data`                                                                                             | `createdAt`                                                      |
+| `settings`    | linha única com configurações da extensão                                                                                                           | —                                                                |
 
 ---
 
@@ -256,65 +256,65 @@ interface Settings {
 
 Componentes Vanilla reativos baseados no Pub-Sub:
 
-* `AppShell`: Layout compartilhado.
-* `SearchBar`: Campo de pesquisa com debounce e suporte ao atalho `/`.
-* `Sidebar` / `CategoryList`: Listagem de categorias.
-* `ScriptList`: Lista virtualizada para eficiência.
-* `ScriptCard`: Visualização compacta e botão de cópia rápida.
-* `ScriptEditor`: Formulário de criação/edição.
-* `ConfirmModal`: Prevenção contra ações destrutivas.
-* `ToastNotification`: Alertas de feedback.
-* `SettingsPanel`: Configurações do app.
-* `TrashView`: Área de restauração e purga.
+- `AppShell`: Layout compartilhado.
+- `SearchBar`: Campo de pesquisa com debounce e suporte ao atalho `/`.
+- `Sidebar` / `CategoryList`: Listagem de categorias.
+- `ScriptList`: Lista virtualizada para eficiência.
+- `ScriptCard`: Visualização compacta e botão de cópia rápida.
+- `ScriptEditor`: Formulário de criação/edição.
+- `ConfirmModal`: Prevenção contra ações destrutivas.
+- `ToastNotification`: Alertas de feedback.
+- `SettingsPanel`: Configurações do app.
+- `TrashView`: Área de restauração e purga.
 
 ---
 
 ## 7. Planejamento das Telas
 
-* **Janela Dedicada (Window):** Janela compacta (~380×520px) com o fluxo de busca, lista e cópia rápida, e acesso rápido ao editor.
-* **Workspace:** Página completa em aba cheia focada em gerenciamento avançado, lixeira e configurações.
+- **Janela Dedicada (Window):** Janela compacta (~380×520px) com o fluxo de busca, lista e cópia rápida, e acesso rápido ao editor.
+- **Workspace:** Página completa em aba cheia focada em gerenciamento avançado, lixeira e configurações.
 
 ---
 
 ## 8. Funcionalidades por Módulo
 
-* **Core/DB:** CRUD e migrações.
-* **Search:** Indexação em memória, ordenação, normalização linguística.
-* **Import/Export:** Geração de JSON e restauração validada.
-* **UI/Tema:** Tokens CSS de cores para modos claro e escuro.
+- **Core/DB:** CRUD e migrações.
+- **Search:** Indexação em memória, ordenação, normalização linguística.
+- **Import/Export:** Geração de JSON e restauração validada.
+- **UI/Tema:** Tokens CSS de cores para modos claro e escuro.
 
 ---
 
 ## 9. Ordem Ideal de Desenvolvimento
 
-* **Fase 0:** Setup inicial (WXT, TS, dependências, ESLint/Prettier, Vitest).
-* **Fase 1:** Camada Core e Banco IndexedDB.
-* **Fase 2:** CRUD básico (Integração Core + UI temporária).
-* **Fase 3:** Sistema de Busca e Filtros.
-* **Fase 4:** Organização (Categorias, Tags).
-* **Fase 5:** Módulo de Importação / Exportação.
-* **Fase 6:** Lixeira (Soft Delete) e confirmações.
-* **Fase 7:** Histórico e métricas simples de uso.
-* **Fase 8:** Janela Dedicada (Lifecycle no Background Worker) + Workspace visual.
-* **Fase 9:** Testes finais e homologação.
+- **Fase 0:** Setup inicial (WXT, TS, dependências, ESLint/Prettier, Vitest).
+- **Fase 1:** Camada Core e Banco IndexedDB.
+- **Fase 2:** CRUD básico (Integração Core + UI temporária).
+- **Fase 3:** Sistema de Busca e Filtros.
+- **Fase 4:** Organização (Categorias, Tags).
+- **Fase 5:** Módulo de Importação / Exportação.
+- **Fase 6:** Lixeira (Soft Delete) e confirmações.
+- **Fase 7:** Histórico e métricas simples de uso.
+- **Fase 8:** Janela Dedicada (Lifecycle no Background Worker) + Workspace visual.
+- **Fase 9:** Testes finais e homologação.
 
 ---
 
 ## 10. Roadmap de Implementação
 
-* **v0.1:** Fases 0–3 (Core, DB, Busca e Cópia).
-* **v0.2:** Fases 4–5 (Categorias e Import/Export).
-* **v0.3:** Fases 6–7 (Lixeira e Histórico).
-* **v1.0:** Fase 8–9 (Interface de Janela Dedicada, Workspace, atalhos e acabamento visual).
+- **v0.1:** Fases 0–3 (Core, DB, Busca e Cópia).
+- **v0.2:** Fases 4–5 (Categorias e Import/Export).
+- **v0.3:** Fases 6–7 (Lixeira e Histórico).
+- **v1.0:** Fase 8–9 (Interface de Janela Dedicada, Workspace, atalhos e acabamento visual).
 
 ---
 
 ## 11. Possíveis Melhorias Futuras
 
-* Sincronização em nuvem.
-* Placeholders / variáveis dinâmicas nos scripts (ex: `{{nome_cliente}}`).
-* Suporte a Markdown leve.
-* Modo equipes / compartilhamento de scripts.
+- Sincronização em nuvem.
+- Placeholders / variáveis dinâmicas nos scripts (ex: `{{nome_cliente}}`).
+- Suporte a Markdown leve.
+- Modo equipes / compartilhamento de scripts.
 
 ---
 

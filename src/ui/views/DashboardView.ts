@@ -1,5 +1,6 @@
 import { emit } from '../../store/app-store';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
+import * as LinksRepo from '../../core/db/links.repository';
 
 const STYLES = `
   .dashboard-view {
@@ -133,7 +134,9 @@ const STYLES = `
 
 let styleInjected = false;
 function injectStyles(): void {
-  if (styleInjected) return;
+  if (styleInjected) {
+    return;
+  }
   const style = document.createElement('style');
   style.textContent = STYLES;
   document.head.appendChild(style);
@@ -162,7 +165,7 @@ export async function createDashboardView(): Promise<HTMLElement> {
   title.className = 'dashboard-view__title';
   title.textContent = 'Estatísticas';
   header.appendChild(title);
-  
+
   container.appendChild(header);
 
   // Content
@@ -173,12 +176,15 @@ export async function createDashboardView(): Promise<HTMLElement> {
   const scripts = await ScriptsRepo.getAllActiveScripts();
   const totalScripts = scripts.length;
   const totalUsages = scripts.reduce((sum, script) => sum + (script.usageCount || 0), 0);
-  
+
+  const links = await LinksRepo.getAllLinks();
+  const totalLinks = links.length;
+
   // Estimate: 15 seconds saved per usage
   const totalSecondsSaved = totalUsages * 15;
   const minutesSaved = Math.floor(totalSecondsSaved / 60);
   const hoursSaved = Math.floor(minutesSaved / 60);
-  
+
   let timeSavedText = `${minutesSaved} minutos`;
   if (hoursSaved > 0) {
     timeSavedText = `${hoursSaved}h ${minutesSaved % 60}m`;
@@ -206,6 +212,15 @@ export async function createDashboardView(): Promise<HTMLElement> {
   `;
   statsGrid.appendChild(card2);
 
+  const cardLinks = document.createElement('div');
+  cardLinks.className = 'stat-card';
+  cardLinks.innerHTML = `
+    <div class="stat-card__title">Links Úteis</div>
+    <div class="stat-card__value">${totalLinks}</div>
+    <div class="stat-card__desc">Links salvos na aba</div>
+  `;
+  statsGrid.appendChild(cardLinks);
+
   const card3 = document.createElement('div');
   card3.className = 'stat-card';
   card3.style.gridColumn = '1 / -1';
@@ -219,12 +234,14 @@ export async function createDashboardView(): Promise<HTMLElement> {
   content.appendChild(statsGrid);
 
   // Top 5 Scripts
-  const topScripts = [...scripts].sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0)).slice(0, 5);
-  
+  const topScripts = [...scripts]
+    .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+    .slice(0, 5);
+
   if (topScripts.length > 0 && (topScripts[0]?.usageCount || 0) > 0) {
     const topList = document.createElement('div');
     topList.className = 'top-scripts';
-    
+
     const topTitle = document.createElement('div');
     topTitle.className = 'top-scripts__title';
     topTitle.textContent = 'Top 5 Scripts Mais Usados';
@@ -234,7 +251,9 @@ export async function createDashboardView(): Promise<HTMLElement> {
     list.className = 'top-scripts__list';
 
     for (const s of topScripts) {
-      if (!s.usageCount || s.usageCount === 0) continue;
+      if (!s.usageCount || s.usageCount === 0) {
+        continue;
+      }
       const item = document.createElement('div');
       item.className = 'top-script-item';
       item.innerHTML = `
@@ -243,7 +262,7 @@ export async function createDashboardView(): Promise<HTMLElement> {
       `;
       list.appendChild(item);
     }
-    
+
     topList.appendChild(list);
     content.appendChild(topList);
   }

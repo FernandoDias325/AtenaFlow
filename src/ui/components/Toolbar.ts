@@ -49,14 +49,17 @@ const STYLES = `
   .toolbar__btn {
     display: inline-flex;
     align-items: center;
+    justify-content: center;
     gap: var(--space-1);
     padding: var(--space-2) var(--space-3);
     background-color: var(--color-primary);
-    color: var(--color-primary-text);
+    color: #fff;
     border-radius: var(--radius-md);
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
     transition: background-color var(--transition-fast);
+    border: none;
+    cursor: pointer;
     white-space: nowrap;
   }
 
@@ -64,7 +67,26 @@ const STYLES = `
     background-color: var(--color-primary-hover);
   }
 
-  .toolbar__btn svg {
+  .toolbar__icon-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 32px;
+    height: 32px;
+    background-color: transparent;
+    color: var(--color-text-secondary);
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+    border: none;
+    cursor: pointer;
+  }
+
+  .toolbar__icon-btn:hover {
+    background-color: var(--color-bg-secondary);
+    color: var(--color-primary);
+  }
+
+  .toolbar__btn svg, .toolbar__icon-btn svg {
     flex-shrink: 0;
   }
 `;
@@ -100,7 +122,7 @@ export function createToolbar(): HTMLElement {
 
   const logo = document.createElement('div');
   logo.className = 'toolbar__logo';
-  logo.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/><path d="M14 2v4a2 2 0 0 0 2 2h4"/><path d="M10 13H8"/><path d="M16 17H8"/><path d="M16 13h-2"/></svg>`;
+  logo.innerHTML = `<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5a3 3 0 1 0-5.997.125 4 4 0 0 0-2.526 5.77 4 4 0 0 0 .556 6.588A4 4 0 1 0 12 18Z"/><path d="M12 5a3 3 0 1 1 5.997.125 4 4 0 0 1 2.526 5.77 4 4 0 0 1-.556 6.588A4 4 0 1 1 12 18Z"/><path d="M15 13a4.5 4.5 0 0 1-3-4 4.5 4.5 0 0 1-3 4"/><path d="M17.599 6.5a3 3 0 0 0 .399-1.375"/><path d="M6.002 5.125A3 3 0 0 0 6.401 6.5"/><path d="M3.477 10.896a4 4 0 0 1 .585-.396"/><path d="M19.938 10.5a4 4 0 0 1 .585.396"/><path d="M6 18a4 4 0 0 1-1.967-.516"/><path d="M19.967 17.484A4 4 0 0 1 18 18"/></svg>`;
   brand.appendChild(logo);
 
   const title = document.createElement('span');
@@ -115,7 +137,7 @@ export function createToolbar(): HTMLElement {
   actions.className = 'toolbar__actions';
 
   const settingsBtn = document.createElement('button');
-  settingsBtn.className = 'toolbar__btn';
+  settingsBtn.className = 'toolbar__icon-btn';
   settingsBtn.type = 'button';
   settingsBtn.setAttribute('aria-label', 'Configurações');
   settingsBtn.title = 'Configurações';
@@ -125,13 +147,33 @@ export function createToolbar(): HTMLElement {
   });
 
   const statsBtn = document.createElement('button');
-  statsBtn.className = 'toolbar__btn';
+  statsBtn.className = 'toolbar__icon-btn';
   statsBtn.type = 'button';
   statsBtn.setAttribute('aria-label', 'Estatísticas');
   statsBtn.title = 'Estatísticas';
   statsBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 3v18h18"/><path d="M18 17V9"/><path d="M13 17V5"/><path d="M8 17v-3"/></svg>`;
   statsBtn.addEventListener('click', () => {
     emit('view-changed', { view: 'dashboard' });
+  });
+
+  const linksBtn = document.createElement('button');
+  linksBtn.className = 'toolbar__icon-btn';
+  linksBtn.type = 'button';
+  linksBtn.setAttribute('aria-label', 'Links Úteis');
+  linksBtn.title = 'Links Úteis';
+  linksBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
+  linksBtn.addEventListener('click', () => {
+    emit('view-changed', { view: 'links' });
+  });
+
+  const notepadBtn = document.createElement('button');
+  notepadBtn.className = 'toolbar__icon-btn';
+  notepadBtn.type = 'button';
+  notepadBtn.setAttribute('aria-label', 'Bloco de Notas');
+  notepadBtn.title = 'Bloco de Notas';
+  notepadBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M13.4 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2v-7.4"/><path d="M2 6h4"/><path d="M2 10h4"/><path d="M2 14h4"/><path d="M2 18h4"/><path d="M21.378 5.626a1 1 0 1 0-3.004-3.004l-5.01 5.012a2 2 0 0 0-.506.854l-.837 2.87a.5.5 0 0 0 .62.62l2.87-.837a2 2 0 0 0 .854-.506z"/></svg>`;
+  notepadBtn.addEventListener('click', () => {
+    emit('view-changed', { view: 'notepad' });
   });
 
   const createBtn = document.createElement('button');
@@ -149,6 +191,8 @@ export function createToolbar(): HTMLElement {
     emit('view-changed', { view: 'editor', scriptId: null });
   });
 
+  actions.appendChild(notepadBtn);
+  actions.appendChild(linksBtn);
   actions.appendChild(statsBtn);
   actions.appendChild(settingsBtn);
   actions.appendChild(createBtn);

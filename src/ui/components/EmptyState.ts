@@ -110,7 +110,8 @@ export function createEmptyState(options: EmptyStateOptions): HTMLElement {
   // Descrição
   const descEl = document.createElement('p');
   descEl.className = 'empty-state__description';
-  descEl.textContent = 'Crie seu primeiro script de atendimento e tenha tudo organizado em um só lugar.';
+  descEl.textContent =
+    'Crie seu primeiro script de atendimento e tenha tudo organizado em um só lugar.';
   container.appendChild(descEl);
 
   // Botão CTA

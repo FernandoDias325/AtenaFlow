@@ -30,11 +30,6 @@
       "~/*": ["./src/*"]
     }
   },
-  "include": [
-    "entrypoints/**/*",
-    "src/**/*",
-    "tests/**/*",
-    ".wxt/types/**/*"
-  ],
+  "include": ["entrypoints/**/*", "src/**/*", "tests/**/*", ".wxt/types/**/*"],
   "exclude": ["node_modules", ".output"]
 }

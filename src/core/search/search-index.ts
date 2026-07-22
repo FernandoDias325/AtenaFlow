@@ -17,11 +17,13 @@ import type { Script } from '../models/types';
  * Ex: "João" -> "joao", "ATENÇÃO" -> "atencao"
  */
 export function normalizeText(text: string): string {
-  if (!text) return '';
+  if (!text) {
+    return '';
+  }
   return text
-    .normalize('NFD')                     // Decompõe caracteres acentuados (ex: 'á' -> 'a' + '´')
-    .replace(/[\u0300-\u036f]/g, '')      // Remove os diacríticos
-    .toLowerCase();                       // Converte para minúsculas
+    .normalize('NFD') // Decompõe caracteres acentuados (ex: 'á' -> 'a' + '´')
+    .replace(/[\u0300-\u036f]/g, '') // Remove os diacríticos
+    .toLowerCase(); // Converte para minúsculas
 }
 
 /**
@@ -38,12 +40,20 @@ export function sortScripts(scripts: Script[], mode: 'recent' | 'usage' = 'recen
   // Retorna uma cópia ordenada para manter a pureza
   return [...scripts].sort((a, b) => {
     // 1. Fixados primeiro
-    if (a.isPinned && !b.isPinned) return -1;
-    if (!a.isPinned && b.isPinned) return 1;
+    if (a.isPinned && !b.isPinned) {
+      return -1;
+    }
+    if (!a.isPinned && b.isPinned) {
+      return 1;
+    }
 
     // 2. Favoritos depois (se ambos são fixados, ou ambos não são fixados)
-    if (a.isFavorite && !b.isFavorite) return -1;
-    if (!a.isFavorite && b.isFavorite) return 1;
+    if (a.isFavorite && !b.isFavorite) {
+      return -1;
+    }
+    if (!a.isFavorite && b.isFavorite) {
+      return 1;
+    }
 
     // 3. Desempate dependendo do modo
     if (mode === 'usage') {
@@ -52,7 +62,7 @@ export function sortScripts(scripts: Script[], mode: 'recent' | 'usage' = 'recen
         return (b.usageCount || 0) - (a.usageCount || 0);
       }
     }
-    
+
     // Fallback: data de modificação (mais recente primeiro)
     return b.updatedAt - a.updatedAt;
   });
@@ -77,9 +87,7 @@ export function filterScripts(scripts: Script[], query: string): Script[] {
   return scripts.filter((script) => {
     // Normaliza os campos apenas no momento da busca.
     // Em listas muito grandes (>10k) faríamos cache da versão normalizada no próprio objeto.
-    const searchString = normalizeText(
-      `${script.title} ${script.body} ${script.notes ?? ''}`
-    );
+    const searchString = normalizeText(`${script.title} ${script.body} ${script.notes ?? ''}`);
 
     return searchString.includes(normalizedQuery);
   });

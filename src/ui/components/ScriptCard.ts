@@ -256,7 +256,10 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   const favBtn = document.createElement('button');
   favBtn.className = `script-card__action-btn ${script.isFavorite ? 'script-card__action-btn--active' : ''}`;
   favBtn.type = 'button';
-  favBtn.setAttribute('aria-label', script.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos');
+  favBtn.setAttribute(
+    'aria-label',
+    script.isFavorite ? 'Remover dos favoritos' : 'Adicionar aos favoritos'
+  );
   favBtn.title = script.isFavorite ? 'Remover Favorito' : 'Favoritar';
   favBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="${script.isFavorite ? 'currentColor' : 'none'}" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><polygon points="12 2 15.09 8.26 22 9.27 17 14.14 18.18 21.02 12 17.77 5.82 21.02 7 14.14 2 9.27 8.91 8.26 12 2"/></svg>`;
   favBtn.addEventListener('click', async (e) => {

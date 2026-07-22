@@ -16,6 +16,8 @@ import { createCategoriesView } from '../views/CategoriesView';
 import { createSettingsView } from '../views/SettingsView';
 import { createTrashView } from '../views/TrashView';
 import { createDashboardView } from '../views/DashboardView';
+import { createLinksView } from '../views/LinksView';
+import { createNotepadView } from '../views/NotepadView';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -93,6 +95,16 @@ export async function initAppShell(rootEl: HTMLElement): Promise<() => void> {
       case 'dashboard': {
         const dashboardView = await createDashboardView();
         shell.appendChild(dashboardView);
+        break;
+      }
+      case 'links': {
+        const linksView = await createLinksView();
+        shell.appendChild(linksView);
+        break;
+      }
+      case 'notepad': {
+        const notepadView = await createNotepadView();
+        shell.appendChild(notepadView);
         break;
       }
     }

@@ -20,7 +20,7 @@ const TAG_COLORS = [
   'var(--color-tag-coral)',
   'var(--color-tag-violet)',
   'var(--color-tag-amber)',
-  'var(--color-tag-green)',
+  'var(--color-tag-green)'
 ];
 
 /** Retorna a cor de tag para um índice de categoria. */
@@ -215,12 +215,16 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
   }
 
   // Scroll horizontal via roda do mouse (desktop)
-  container.addEventListener('wheel', (e) => {
-    if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
-      e.preventDefault();
-      container.scrollLeft += e.deltaY;
-    }
-  }, { passive: false });
+  container.addEventListener(
+    'wheel',
+    (e) => {
+      if (Math.abs(e.deltaY) > Math.abs(e.deltaX)) {
+        e.preventDefault();
+        container.scrollLeft += e.deltaY;
+      }
+    },
+    { passive: false }
+  );
 
   return container;
 }
