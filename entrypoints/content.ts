@@ -74,6 +74,11 @@ export default defineContentScript({
       popupElement = document.createElement('div');
       popupElement.style.position = 'absolute';
       popupElement.style.zIndex = '2147483647'; // Max z-index
+
+      // Evita que sites hospedeiros (ex: WhatsApp Web) roubem o foco ao digitar
+      popupElement.addEventListener('keydown', (e) => e.stopPropagation());
+      popupElement.addEventListener('keyup', (e) => e.stopPropagation());
+      popupElement.addEventListener('keypress', (e) => e.stopPropagation());
       
       // Verifica se há espaço para abrir para baixo (altura max do popup é 300px)
       const maxPopupHeight = 300;
@@ -153,6 +158,14 @@ export default defineContentScript({
           return;
         }
 
+        const viewList = document.createElement('div');
+        viewList.style.display = 'block';
+
+        const viewEdit = document.createElement('div');
+        viewEdit.style.display = 'none';
+        viewEdit.style.flexDirection = 'column';
+        viewEdit.style.height = '100%';
+
         const title = document.createElement('div');
         title.textContent = 'AtenaFlow Scripts';
         title.style.fontSize = '11px';
@@ -162,7 +175,7 @@ export default defineContentScript({
         title.style.letterSpacing = '0.5px';
         title.style.marginBottom = '6px';
         title.style.padding = '0 4px';
-        container.appendChild(title);
+        viewList.appendChild(title);
 
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
@@ -187,10 +200,98 @@ export default defineContentScript({
         searchInput.onclick = (e) => { e.stopPropagation(); };
         searchInput.onmousedown = (e) => { e.stopPropagation(); };
         
-        container.appendChild(searchInput);
+        viewList.appendChild(searchInput);
 
         const listContainer = document.createElement('div');
-        container.appendChild(listContainer);
+        viewList.appendChild(listContainer);
+        
+        container.appendChild(viewList);
+        container.appendChild(viewEdit);
+
+        const showEditModal = (script: any) => {
+          viewList.style.display = 'none';
+          viewEdit.style.display = 'flex';
+          viewEdit.innerHTML = '';
+
+          const editTitle = document.createElement('div');
+          editTitle.textContent = 'Editar e Injetar';
+          editTitle.style.fontSize = '12px';
+          editTitle.style.fontWeight = '600';
+          editTitle.style.color = '#fff';
+          editTitle.style.marginBottom = '8px';
+          viewEdit.appendChild(editTitle);
+
+          const textarea = document.createElement('textarea');
+          textarea.value = script.body;
+          textarea.style.cssText = `
+            width: 100%;
+            min-height: 120px;
+            padding: 8px;
+            border: 1px solid rgba(255,255,255,0.2);
+            border-radius: 6px;
+            background: rgba(0,0,0,0.3);
+            color: #fff;
+            font-family: inherit;
+            font-size: 13px;
+            resize: vertical;
+            outline: none;
+            box-sizing: border-box;
+            margin-bottom: 12px;
+          `;
+          textarea.onfocus = () => textarea.style.border = '1px solid var(--color-primary-soft, #5a9)';
+          textarea.onblur = () => textarea.style.border = '1px solid rgba(255,255,255,0.2)';
+          
+          textarea.onclick = (e) => e.stopPropagation();
+          textarea.onmousedown = (e) => e.stopPropagation();
+
+          viewEdit.appendChild(textarea);
+
+          const btnRow = document.createElement('div');
+          btnRow.style.display = 'flex';
+          btnRow.style.justifyContent = 'flex-end';
+          btnRow.style.gap = '8px';
+
+          const cancelBtn = document.createElement('button');
+          cancelBtn.textContent = 'Cancelar';
+          cancelBtn.style.cssText = `
+            padding: 6px 12px;
+            border: 1px solid rgba(255,255,255,0.2);
+            background: transparent;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+          `;
+          cancelBtn.onclick = (e) => {
+            e.stopPropagation();
+            viewEdit.style.display = 'none';
+            viewList.style.display = 'block';
+            setTimeout(() => searchInput.focus(), 50);
+          };
+
+          const okBtn = document.createElement('button');
+          okBtn.textContent = 'OK';
+          okBtn.style.cssText = `
+            padding: 6px 16px;
+            border: none;
+            background: #25D366;
+            color: #fff;
+            border-radius: 4px;
+            cursor: pointer;
+            font-size: 12px;
+            font-weight: 600;
+          `;
+          okBtn.onclick = (e) => {
+            e.stopPropagation();
+            injectText(textarea.value, script.id);
+          };
+
+          btnRow.appendChild(cancelBtn);
+          btnRow.appendChild(okBtn);
+          viewEdit.appendChild(btnRow);
+
+          setTimeout(() => textarea.focus(), 50);
+        };
 
         const renderList = (filterText: string) => {
           listContainer.innerHTML = '';
@@ -208,27 +309,60 @@ export default defineContentScript({
 
           filtered.forEach((script: any) => {
             const item = document.createElement('div');
-            item.textContent = script.title;
             item.style.cssText = `
-              padding: 8px;
+              display: flex;
+              align-items: center;
+              justify-content: space-between;
+              padding: 4px 8px;
               cursor: pointer;
               border-radius: 6px;
               font-size: 13px;
               margin-bottom: 2px;
               transition: background 0.15s ease;
-              white-space: nowrap;
-              overflow: hidden;
-              text-overflow: ellipsis;
               color: #eee;
             `;
             item.onmouseenter = () => item.style.background = 'rgba(255, 255, 255, 0.1)';
             item.onmouseleave = () => item.style.background = 'transparent';
             
-            item.onclick = (e) => {
+            const titleSpan = document.createElement('span');
+            titleSpan.textContent = script.title;
+            titleSpan.style.cssText = `
+              flex: 1;
+              white-space: nowrap;
+              overflow: hidden;
+              text-overflow: ellipsis;
+              padding: 4px 0;
+            `;
+            titleSpan.onclick = (e) => {
               e.preventDefault();
               e.stopPropagation();
               injectText(script.body, script.id);
             };
+
+            const editBtn = document.createElement('button');
+            editBtn.innerHTML = '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M12 20h9"/><path d="M16.5 3.5a2.12 2.12 0 0 1 3 3L7 19l-4 1 1-4Z"/></svg>';
+            editBtn.style.cssText = `
+              background: transparent;
+              border: none;
+              color: rgba(255,255,255,0.5);
+              cursor: pointer;
+              padding: 4px;
+              display: flex;
+              align-items: center;
+              justify-content: center;
+              border-radius: 4px;
+              margin-left: 8px;
+            `;
+            editBtn.onmouseenter = () => editBtn.style.color = '#fff';
+            editBtn.onmouseleave = () => editBtn.style.color = 'rgba(255,255,255,0.5)';
+            editBtn.onclick = (e) => {
+              e.preventDefault();
+              e.stopPropagation();
+              showEditModal(script);
+            };
+
+            item.appendChild(titleSpan);
+            item.appendChild(editBtn);
             
             listContainer.appendChild(item);
           });
