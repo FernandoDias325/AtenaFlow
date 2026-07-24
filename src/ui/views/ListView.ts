@@ -116,6 +116,7 @@ export async function createListView(): Promise<HTMLElement> {
 
   // SearchBar
   const searchBar = createSearchBar({
+    initialValue: currentQuery,
     onSearch: (query) => {
       currentQuery = query;
       renderFilterBarAndList();

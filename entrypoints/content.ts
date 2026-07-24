@@ -8,9 +8,14 @@ export default defineContentScript({
     let currentFocusedElement: HTMLElement | null = null;
     let iconElement: HTMLElement | null = null;
     let popupElement: HTMLElement | null = null;
+    let positionInterval: number | null = null;
 
     // Remove ícone e popup se existirem
     function cleanupUI() {
+      if (positionInterval) {
+        clearInterval(positionInterval);
+        positionInterval = null;
+      }
       if (iconElement) {
         iconElement.remove();
         iconElement = null;
@@ -80,9 +85,10 @@ export default defineContentScript({
       popupElement.style.zIndex = '2147483647'; // Max z-index
 
       // Evita que sites hospedeiros (ex: WhatsApp Web) roubem o foco ao digitar
-      popupElement.addEventListener('keydown', (e) => e.stopPropagation());
-      popupElement.addEventListener('keyup', (e) => e.stopPropagation());
-      popupElement.addEventListener('keypress', (e) => e.stopPropagation());
+      const stopAll = (e: Event) => e.stopPropagation();
+      ['keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'click'].forEach(evt => {
+        popupElement!.addEventListener(evt, stopAll);
+      });
 
       // Verifica se há espaço para abrir para baixo (altura max do popup é 300px)
       const maxPopupHeight = 300;
@@ -185,6 +191,7 @@ export default defineContentScript({
 
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
+        searchInput.slot = 'search-input';
         searchInput.placeholder = 'Pesquisar script...';
         searchInput.style.cssText = `
           width: 100%;
@@ -194,7 +201,7 @@ export default defineContentScript({
           border-radius: 6px;
           background: rgba(0, 0, 0, 0.2);
           color: #fff;
-          font-family: inherit;
+          font-family: 'Inter', system-ui, -apple-system, sans-serif;
           font-size: 13px;
           outline: none;
           box-sizing: border-box;
@@ -210,9 +217,14 @@ export default defineContentScript({
         };
         searchInput.onmousedown = (e) => {
           e.stopPropagation();
+          setTimeout(() => searchInput.focus(), 10);
         };
 
-        viewList.appendChild(searchInput);
+        popupElement!.appendChild(searchInput);
+        
+        const searchSlot = document.createElement('slot');
+        searchSlot.name = 'search-input';
+        viewList.appendChild(searchSlot);
 
         const listContainer = document.createElement('div');
         viewList.appendChild(listContainer);
@@ -233,7 +245,12 @@ export default defineContentScript({
           editTitle.style.marginBottom = '8px';
           viewEdit.appendChild(editTitle);
 
+          // Limpa slots antigos da textarea, se houver
+          const oldTextarea = popupElement!.querySelector('textarea[slot="edit-textarea"]');
+          if (oldTextarea) oldTextarea.remove();
+
           const textarea = document.createElement('textarea');
+          textarea.slot = 'edit-textarea';
           textarea.value = script.body;
           textarea.style.cssText = `
             width: 100%;
@@ -243,7 +260,7 @@ export default defineContentScript({
             border-radius: 6px;
             background: rgba(0,0,0,0.3);
             color: #fff;
-            font-family: inherit;
+            font-family: 'Inter', system-ui, -apple-system, sans-serif;
             font-size: 13px;
             resize: vertical;
             outline: none;
@@ -255,9 +272,16 @@ export default defineContentScript({
           textarea.onblur = () => (textarea.style.border = '1px solid rgba(255,255,255,0.2)');
 
           textarea.onclick = (e) => e.stopPropagation();
-          textarea.onmousedown = (e) => e.stopPropagation();
+          textarea.onmousedown = (e) => {
+            e.stopPropagation();
+            setTimeout(() => textarea.focus(), 10);
+          };
 
-          viewEdit.appendChild(textarea);
+          popupElement!.appendChild(textarea);
+          
+          const textareaSlot = document.createElement('slot');
+          textareaSlot.name = 'edit-textarea';
+          viewEdit.appendChild(textareaSlot);
 
           const btnRow = document.createElement('div');
           btnRow.style.display = 'flex';
@@ -410,57 +434,118 @@ export default defineContentScript({
         cursor: pointer;
         z-index: 2147483646;
         opacity: 0.5;
-        transition: all 0.2s ease;
+        transition: opacity 0.2s ease, transform 0.2s ease, box-shadow 0.2s ease;
         border-radius: 4px;
         box-shadow: 0 1px 3px rgba(0,0,0,0.2);
         background-color: #fff;
       `;
 
+      let isDragging = false;
+
       iconElement.onmouseenter = () => {
+        if (isDragging) return;
         iconElement!.style.opacity = '1';
         iconElement!.style.transform = 'scale(1.1)';
         iconElement!.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
       };
       iconElement.onmouseleave = () => {
+        if (isDragging) return;
         iconElement!.style.opacity = '0.5';
         iconElement!.style.transform = 'scale(1)';
         iconElement!.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';
       };
 
+      let customOffsetX = 28;
+      let customOffsetY = 28;
+      let lastTop = 0, lastLeft = 0;
+
       // Posiciona o ícone
       const updatePosition = () => {
-        if (!currentFocusedElement || !iconElement) {
+        if (!currentFocusedElement || !iconElement || isDragging) {
           return;
         }
         const rect = currentFocusedElement.getBoundingClientRect();
+        
+        if (rect.width === 0 || rect.height === 0) {
+          iconElement.style.display = 'none';
+          return;
+        }
+        iconElement.style.display = 'block';
 
-        const top = window.scrollY + rect.top + rect.height / 2 - 10;
-        const left = window.scrollX + rect.right - 28; // 8px de respiro da borda direita
+        const top = window.scrollY + rect.bottom - customOffsetY;
+        const left = window.scrollX + rect.right - customOffsetX;
 
-        iconElement.style.top = `${top}px`;
-        iconElement.style.left = `${left}px`;
+        if (Math.abs(top - lastTop) > 1 || Math.abs(left - lastLeft) > 1) {
+          iconElement.style.top = `${top}px`;
+          iconElement.style.left = `${left}px`;
+          lastTop = top;
+          lastLeft = left;
+        }
       };
 
       updatePosition();
+      positionInterval = window.setInterval(updatePosition, 100);
+
+      let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
 
       iconElement.onmousedown = (e) => {
         e.preventDefault();
         e.stopPropagation();
-      };
+        isDragging = false;
+        startX = e.clientX;
+        startY = e.clientY;
+        initialLeft = parseInt(iconElement!.style.left || '0', 10);
+        initialTop = parseInt(iconElement!.style.top || '0', 10);
 
-      iconElement.onclick = (e) => {
-        e.preventDefault();
-        e.stopPropagation();
-        if (popupElement) {
-          cleanupUI(); // Fecha se já estiver aberto
-        } else {
-          createPopup();
-        }
+        iconElement!.style.opacity = '1';
+        iconElement!.style.transform = 'scale(1.1)';
+
+        const onMouseMove = (moveEvent: MouseEvent) => {
+          const dx = moveEvent.clientX - startX;
+          const dy = moveEvent.clientY - startY;
+          if (Math.abs(dx) > 3 || Math.abs(dy) > 3) {
+            isDragging = true;
+          }
+          if (isDragging && iconElement) {
+            iconElement.style.left = `${initialLeft + dx}px`;
+            iconElement.style.top = `${initialTop + dy}px`;
+          }
+        };
+
+        const onMouseUp = (upEvent: MouseEvent) => {
+          document.removeEventListener('mousemove', onMouseMove);
+          document.removeEventListener('mouseup', onMouseUp);
+          
+          if (iconElement) {
+            iconElement.style.opacity = '0.5';
+            iconElement.style.transform = 'scale(1)';
+          }
+
+          if (isDragging && iconElement && currentFocusedElement) {
+            // Salva o novo offset
+            const rect = currentFocusedElement.getBoundingClientRect();
+            const currentLeft = parseInt(iconElement.style.left || '0', 10);
+            const currentTop = parseInt(iconElement.style.top || '0', 10);
+            
+            customOffsetX = window.scrollX + rect.right - currentLeft;
+            customOffsetY = window.scrollY + rect.bottom - currentTop;
+            
+            setTimeout(() => { isDragging = false; }, 50);
+          } else if (!isDragging) {
+             // Foi apenas um clique
+             if (popupElement) {
+               cleanupUI(); // Fecha se já estiver aberto
+             } else {
+               createPopup();
+             }
+          }
+        };
+
+        document.addEventListener('mousemove', onMouseMove);
+        document.addEventListener('mouseup', onMouseUp);
       };
 
       document.body.appendChild(iconElement);
-
-      window.addEventListener('resize', updatePosition, { once: true });
     }
 
     document.addEventListener(
@@ -468,6 +553,11 @@ export default defineContentScript({
       (e) => {
         const target = e.target as HTMLElement;
         if (!target) {
+          return;
+        }
+
+        // Ignora focos dentro do nosso próprio popup (agora que os inputs estão no Light DOM)
+        if (popupElement && (popupElement === target || popupElement.contains(target))) {
           return;
         }
 

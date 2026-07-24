@@ -2,6 +2,7 @@ import { emit } from '../../store/app-store';
 import * as LinksRepo from '../../core/db/links.repository';
 import type { Link } from '../../core/models/types';
 import { showConfirmModal } from '../components/ConfirmModal';
+import { createSearchBar } from '../components/SearchBar';
 
 const STYLES = `
   .links-view {
@@ -241,18 +242,35 @@ export async function createLinksView(): Promise<HTMLElement> {
 
   container.appendChild(header);
 
+  let currentQuery = '';
+
+  const searchBar = createSearchBar({
+    initialValue: currentQuery,
+    placeholder: 'Buscar links...',
+    onSearch: (query) => {
+      currentQuery = query;
+      renderLinks();
+    }
+  });
+  container.appendChild(searchBar);
+
   // ─── Content ─────────────────────────────────────────────────────────
   const content = document.createElement('div');
   content.className = 'links-view__content';
   container.appendChild(content);
 
-  let links: Link[] = [];
+  let allLinks: Link[] = [];
 
   const renderLinks = async () => {
     content.innerHTML = '';
-    links = await LinksRepo.getAllLinks();
+    allLinks = await LinksRepo.getAllLinks();
 
-    if (links.length === 0) {
+    const filteredLinks = allLinks.filter(link => 
+      link.title.toLowerCase().includes(currentQuery.toLowerCase()) || 
+      link.url.toLowerCase().includes(currentQuery.toLowerCase())
+    );
+
+    if (allLinks.length === 0) {
       const emptyState = document.createElement('div');
       emptyState.style.textAlign = 'center';
       emptyState.style.color = 'var(--color-text-secondary)';
@@ -266,7 +284,17 @@ export async function createLinksView(): Promise<HTMLElement> {
       return;
     }
 
-    links.forEach((link) => {
+    if (filteredLinks.length === 0) {
+      const emptySearch = document.createElement('div');
+      emptySearch.style.textAlign = 'center';
+      emptySearch.style.color = 'var(--color-text-secondary)';
+      emptySearch.style.padding = 'var(--space-4) 0';
+      emptySearch.textContent = 'Nenhum link encontrado para a sua busca.';
+      content.appendChild(emptySearch);
+      return;
+    }
+
+    filteredLinks.forEach((link) => {
       const item = document.createElement('div');
       item.className = 'link-item';
 

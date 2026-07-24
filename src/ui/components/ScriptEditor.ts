@@ -117,6 +117,53 @@ const STYLES = `
     box-shadow: 0 0 0 3px var(--color-primary-soft);
   }
 
+  .editor__category-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+  }
+
+  .editor__category-new-btn {
+    font-size: var(--font-size-xs);
+    color: var(--color-primary);
+    cursor: pointer;
+    background: transparent;
+    font-weight: var(--font-weight-medium);
+  }
+  .editor__category-new-btn:hover {
+    text-decoration: underline;
+  }
+
+  .editor__category-create-row {
+    display: none;
+    align-items: center;
+    gap: var(--space-2);
+    margin-top: var(--space-2);
+  }
+
+  .editor__category-create-row--visible {
+    display: flex;
+  }
+
+  .editor__category-create-input {
+    flex: 1;
+    padding: var(--space-2) var(--space-3);
+    font-size: var(--font-size-sm);
+    border: 1px solid var(--color-primary);
+    border-radius: var(--radius-sm);
+    outline: none;
+  }
+
+  .editor__category-create-save {
+    padding: var(--space-2) var(--space-3);
+    background-color: var(--color-primary);
+    color: var(--color-primary-text);
+    border-radius: var(--radius-sm);
+    font-size: var(--font-size-xs);
+    font-weight: var(--font-weight-medium);
+    cursor: pointer;
+  }
+
   .editor__textarea {
     width: 100%;
     min-height: 160px;
@@ -316,11 +363,22 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
   const categoryField = document.createElement('div');
   categoryField.className = 'editor__field';
 
+  const categoryHeader = document.createElement('div');
+  categoryHeader.className = 'editor__category-header';
+
   const categoryLabel = document.createElement('label');
   categoryLabel.className = 'editor__label';
   categoryLabel.textContent = 'Categoria';
   categoryLabel.htmlFor = 'editor-category';
-  categoryField.appendChild(categoryLabel);
+  categoryHeader.appendChild(categoryLabel);
+
+  const newCategoryBtn = document.createElement('button');
+  newCategoryBtn.className = 'editor__category-new-btn';
+  newCategoryBtn.type = 'button';
+  newCategoryBtn.textContent = '+ Nova categoria';
+  categoryHeader.appendChild(newCategoryBtn);
+  
+  categoryField.appendChild(categoryHeader);
 
   const categorySelect = document.createElement('select');
   categorySelect.className = 'editor__select';
@@ -341,6 +399,68 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
     categorySelect.appendChild(opt);
   }
   categoryField.appendChild(categorySelect);
+
+  // Linha de criação inline
+  const createRow = document.createElement('div');
+  createRow.className = 'editor__category-create-row';
+
+  const createInput = document.createElement('input');
+  createInput.className = 'editor__category-create-input';
+  createInput.type = 'text';
+  createInput.placeholder = 'Nome da categoria...';
+  createRow.appendChild(createInput);
+
+  const createSaveBtn = document.createElement('button');
+  createSaveBtn.className = 'editor__category-create-save';
+  createSaveBtn.type = 'button';
+  createSaveBtn.textContent = 'Criar';
+  createRow.appendChild(createSaveBtn);
+
+  categoryField.appendChild(createRow);
+
+  newCategoryBtn.addEventListener('click', () => {
+    createRow.classList.toggle('editor__category-create-row--visible');
+    if (createRow.classList.contains('editor__category-create-row--visible')) {
+      createInput.focus();
+    }
+  });
+
+  createSaveBtn.addEventListener('click', async () => {
+    const name = createInput.value.trim();
+    if (!name) return;
+
+    // Evitar duplicadas
+    const exists = categories.some((c) => c.name.toLowerCase() === name.toLowerCase());
+    if (exists) {
+      emit('toast', { message: 'Categoria já existe!', type: 'error' });
+      return;
+    }
+
+    try {
+      const newCat = await CategoriesRepo.createCategory({ name, color: '#6366f1' });
+      categories.push(newCat);
+      
+      const opt = document.createElement('option');
+      opt.value = newCat.id;
+      opt.textContent = newCat.name;
+      opt.selected = true;
+      categorySelect.appendChild(opt);
+
+      createInput.value = '';
+      createRow.classList.remove('editor__category-create-row--visible');
+      emit('toast', { message: 'Categoria criada!', type: 'success' });
+    } catch (e) {
+      emit('toast', { message: 'Erro ao criar', type: 'error' });
+    }
+  });
+
+  createInput.addEventListener('keydown', (e) => {
+    if (e.key === 'Enter') {
+      e.preventDefault();
+      createSaveBtn.click();
+    }
+  });
+
   form.appendChild(categoryField);
 
   // Campo: Corpo do script

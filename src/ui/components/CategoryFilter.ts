@@ -198,21 +198,19 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
   });
 
   // Botão "+ gerenciar"
-  if (categories.length > 0) {
-    const manageBtn = document.createElement('button');
-    manageBtn.className = 'category-chip__manage';
-    manageBtn.type = 'button';
-    manageBtn.title = 'Gerenciar Categorias';
-    manageBtn.setAttribute('aria-label', 'Gerenciar Categorias');
-    manageBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>`;
-    const mText = document.createElement('span');
-    mText.textContent = 'gerenciar';
-    manageBtn.appendChild(mText);
-    manageBtn.addEventListener('click', () => {
-      emit('view-changed', { view: 'categories' });
-    });
-    container.appendChild(manageBtn);
-  }
+  const manageBtn = document.createElement('button');
+  manageBtn.className = 'category-chip__manage';
+  manageBtn.type = 'button';
+  manageBtn.title = 'Gerenciar Categorias';
+  manageBtn.setAttribute('aria-label', 'Gerenciar Categorias');
+  manageBtn.innerHTML = `<svg width="12" height="12" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M12 5v14"/><path d="M5 12h14"/></svg>`;
+  const mText = document.createElement('span');
+  mText.textContent = categories.length === 0 ? 'criar categoria' : 'gerenciar';
+  manageBtn.appendChild(mText);
+  manageBtn.addEventListener('click', () => {
+    emit('view-changed', { view: 'categories' });
+  });
+  container.appendChild(manageBtn);
 
   // Scroll horizontal via roda do mouse (desktop)
   container.addEventListener(

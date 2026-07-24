@@ -53,6 +53,11 @@ const STYLES = `
     box-shadow: 0 0 0 3px var(--color-primary-soft);
   }
 
+  .search-box__input::-webkit-search-cancel-button {
+    -webkit-appearance: none;
+    appearance: none;
+  }
+
   .search-box__input::placeholder {
     color: var(--color-text-tertiary);
   }
@@ -131,6 +136,8 @@ function debounce<T extends (...args: any[]) => void>(
 export interface SearchBarOptions {
   onSearch: (query: string) => void;
   debounceMs?: number;
+  initialValue?: string;
+  placeholder?: string;
 }
 
 /**
@@ -155,8 +162,11 @@ export function createSearchBar(options: SearchBarOptions): HTMLElement {
   const input = document.createElement('input');
   input.className = 'search-box__input';
   input.type = 'search';
-  input.placeholder = 'Buscar scripts...';
-  input.setAttribute('aria-label', 'Buscar scripts');
+  input.placeholder = options.placeholder || 'Buscar scripts...';
+  input.setAttribute('aria-label', options.placeholder || 'Buscar scripts');
+  if (options.initialValue) {
+    input.value = options.initialValue;
+  }
   box.appendChild(input);
 
   // Badge do Atalho '/'
@@ -168,6 +178,9 @@ export function createSearchBar(options: SearchBarOptions): HTMLElement {
   // Botão Limpar
   const clearBtn = document.createElement('button');
   clearBtn.className = 'search-box__clear';
+  if (options.initialValue) {
+    clearBtn.classList.add('search-box__clear--visible');
+  }
   clearBtn.type = 'button';
   clearBtn.setAttribute('aria-label', 'Limpar busca');
   clearBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>`;
@@ -176,6 +189,10 @@ export function createSearchBar(options: SearchBarOptions): HTMLElement {
   container.appendChild(box);
 
   // ─── Lógica ────────────────────────────────────────────────────────
+
+  if (options.initialValue) {
+    shortcut.style.opacity = '0';
+  }
 
   const handleSearch = debounce(() => {
     options.onSearch(input.value);
