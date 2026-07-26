@@ -377,7 +377,7 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
   newCategoryBtn.type = 'button';
   newCategoryBtn.textContent = '+ Nova categoria';
   categoryHeader.appendChild(newCategoryBtn);
-  
+
   categoryField.appendChild(categoryHeader);
 
   const categorySelect = document.createElement('select');
@@ -439,7 +439,7 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
     try {
       const newCat = await CategoriesRepo.createCategory({ name, color: '#6366f1' });
       categories.push(newCat);
-      
+
       const opt = document.createElement('option');
       opt.value = newCat.id;
       opt.textContent = newCat.name;

@@ -49,7 +49,17 @@ export default defineContentScript({
         }
       } else if (el.isContentEditable) {
         el.focus();
-        const success = document.execCommand('insertText', false, text);
+
+        // Na Hi Platform, o insertText com \n cria <div>s separados que quebram o layout (flex row).
+        // Usar insertHTML com <br> mantém o texto no mesmo container e resolve o problema.
+        const escapeHTML = (str: string) =>
+          str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+        const htmlText = escapeHTML(text).replace(/\n/g, '<br>');
+
+        let success = document.execCommand('insertHTML', false, htmlText);
+        if (!success) {
+          success = document.execCommand('insertText', false, text);
+        }
         if (!success) {
           // Fallback
           el.textContent = (el.textContent || '') + text;
@@ -86,7 +96,7 @@ export default defineContentScript({
 
       // Evita que sites hospedeiros (ex: WhatsApp Web) roubem o foco ao digitar
       const stopAll = (e: Event) => e.stopPropagation();
-      ['keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'click'].forEach(evt => {
+      ['keydown', 'keyup', 'keypress', 'mousedown', 'mouseup', 'click'].forEach((evt) => {
         popupElement!.addEventListener(evt, stopAll);
       });
 
@@ -221,7 +231,7 @@ export default defineContentScript({
         };
 
         popupElement!.appendChild(searchInput);
-        
+
         const searchSlot = document.createElement('slot');
         searchSlot.name = 'search-input';
         viewList.appendChild(searchSlot);
@@ -278,7 +288,7 @@ export default defineContentScript({
           };
 
           popupElement!.appendChild(textarea);
-          
+
           const textareaSlot = document.createElement('slot');
           textareaSlot.name = 'edit-textarea';
           viewEdit.appendChild(textareaSlot);
@@ -457,7 +467,8 @@ export default defineContentScript({
 
       let customOffsetX = 28;
       let customOffsetY = 28;
-      let lastTop = 0, lastLeft = 0;
+      let lastTop = 0,
+        lastLeft = 0;
 
       // Posiciona o ícone
       const updatePosition = () => {
@@ -465,7 +476,7 @@ export default defineContentScript({
           return;
         }
         const rect = currentFocusedElement.getBoundingClientRect();
-        
+
         if (rect.width === 0 || rect.height === 0) {
           iconElement.style.display = 'none';
           return;
@@ -486,7 +497,10 @@ export default defineContentScript({
       updatePosition();
       positionInterval = window.setInterval(updatePosition, 100);
 
-      let startX = 0, startY = 0, initialLeft = 0, initialTop = 0;
+      let startX = 0,
+        startY = 0,
+        initialLeft = 0,
+        initialTop = 0;
 
       iconElement.onmousedown = (e) => {
         e.preventDefault();
@@ -512,10 +526,10 @@ export default defineContentScript({
           }
         };
 
-        const onMouseUp = (upEvent: MouseEvent) => {
+        const onMouseUp = () => {
           document.removeEventListener('mousemove', onMouseMove);
           document.removeEventListener('mouseup', onMouseUp);
-          
+
           if (iconElement) {
             iconElement.style.opacity = '0.5';
             iconElement.style.transform = 'scale(1)';
@@ -526,18 +540,20 @@ export default defineContentScript({
             const rect = currentFocusedElement.getBoundingClientRect();
             const currentLeft = parseInt(iconElement.style.left || '0', 10);
             const currentTop = parseInt(iconElement.style.top || '0', 10);
-            
+
             customOffsetX = window.scrollX + rect.right - currentLeft;
             customOffsetY = window.scrollY + rect.bottom - currentTop;
-            
-            setTimeout(() => { isDragging = false; }, 50);
+
+            setTimeout(() => {
+              isDragging = false;
+            }, 50);
           } else if (!isDragging) {
-             // Foi apenas um clique
-             if (popupElement) {
-               cleanupUI(); // Fecha se já estiver aberto
-             } else {
-               createPopup();
-             }
+            // Foi apenas um clique
+            if (popupElement) {
+              cleanupUI(); // Fecha se já estiver aberto
+            } else {
+              createPopup();
+            }
           }
         };
 

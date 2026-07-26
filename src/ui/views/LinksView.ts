@@ -265,9 +265,10 @@ export async function createLinksView(): Promise<HTMLElement> {
     content.innerHTML = '';
     allLinks = await LinksRepo.getAllLinks();
 
-    const filteredLinks = allLinks.filter(link => 
-      link.title.toLowerCase().includes(currentQuery.toLowerCase()) || 
-      link.url.toLowerCase().includes(currentQuery.toLowerCase())
+    const filteredLinks = allLinks.filter(
+      (link) =>
+        link.title.toLowerCase().includes(currentQuery.toLowerCase()) ||
+        link.url.toLowerCase().includes(currentQuery.toLowerCase())
     );
 
     if (allLinks.length === 0) {
