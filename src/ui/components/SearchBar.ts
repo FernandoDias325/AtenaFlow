@@ -118,7 +118,7 @@ function injectStyles(): void {
 
 // ─── Debounce ────────────────────────────────────────────────────────────────
 
-function debounce<T extends (...args: any[]) => void>(
+function debounce<T extends (...args: Parameters<T>) => void>(
   func: T,
   wait: number
 ): (...args: Parameters<T>) => void {

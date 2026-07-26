@@ -34,7 +34,7 @@ export async function generateExportData(): Promise<ExportData> {
   const activeScripts = allScripts.filter((s) => s.deletedAt === null);
 
   const allLinks = await db.getAll('links');
-  const activeLinks = allLinks.filter((l) => l.deletedAt == null);
+  const activeLinks = allLinks.filter((l) => l.deletedAt === null);
 
   return {
     version: 2,
@@ -71,7 +71,7 @@ export async function exportBackup(): Promise<void> {
  * Usa transação atômica para mesclar (upsert) categorias e scripts.
  */
 export async function importBackup(jsonString: string): Promise<void> {
-  let parsed: any;
+  let parsed: unknown;
   try {
     parsed = JSON.parse(jsonString);
   } catch (e) {
@@ -83,10 +83,11 @@ export async function importBackup(jsonString: string): Promise<void> {
     throw new Error('O formato do arquivo é inválido.');
   }
 
+  const parsedObj = parsed as Record<string, unknown>;
   if (
-    (parsed.version !== 1 && parsed.version !== 2) ||
-    !Array.isArray(parsed.categories) ||
-    !Array.isArray(parsed.scripts)
+    (parsedObj['version'] !== 1 && parsedObj['version'] !== 2) ||
+    !Array.isArray(parsedObj['categories']) ||
+    !Array.isArray(parsedObj['scripts'])
   ) {
     throw new Error('Arquivo de backup incompatível ou mal formatado.');
   }

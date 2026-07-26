@@ -14,12 +14,17 @@ import { initToastSystem } from '../../src/ui/components/ToastNotification';
 async function main(): Promise<void> {
   try {
     // 1. Inicializa o tema
-    const savedTheme = localStorage.getItem('atenaflow-theme');
-    if (savedTheme) {
-      document.documentElement.setAttribute('data-theme', savedTheme);
-    } else {
-      // Opcional: checar preferência do sistema, mas manteremos o light como padrão
-    }
+    const initTheme = () => {
+      const savedTheme = localStorage.getItem('atenaflow-theme');
+      if (savedTheme) {
+        document.documentElement.setAttribute('data-theme', savedTheme);
+        chrome.storage.local.set({ 'atenaflow-theme': savedTheme });
+      } else {
+        document.documentElement.setAttribute('data-theme', 'light');
+        chrome.storage.local.set({ 'atenaflow-theme': 'light' });
+      }
+    };
+    initTheme();
 
     // 2. Inicializa o banco de dados (cria object stores na primeira vez)
     await getDB();

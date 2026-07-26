@@ -156,7 +156,7 @@ const STYLES = `
 
   .editor__category-create-save {
     padding: var(--space-2) var(--space-3);
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: var(--color-primary-text);
     border-radius: var(--radius-sm);
     font-size: var(--font-size-xs);
@@ -244,12 +244,12 @@ const STYLES = `
   }
 
   .editor__btn--save {
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: var(--color-primary-text);
   }
 
   .editor__btn--save:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 
   .editor__btn--save:disabled {
@@ -427,7 +427,9 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
 
   createSaveBtn.addEventListener('click', async () => {
     const name = createInput.value.trim();
-    if (!name) return;
+    if (!name) {
+      return;
+    }
 
     // Evitar duplicadas
     const exists = categories.some((c) => c.name.toLowerCase() === name.toLowerCase());

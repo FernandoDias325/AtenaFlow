@@ -52,7 +52,7 @@ const STYLES = `
     justify-content: center;
     gap: var(--space-1);
     padding: var(--space-2) var(--space-3);
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: #fff;
     border-radius: var(--radius-md);
     font-size: var(--font-size-xs);
@@ -64,7 +64,7 @@ const STYLES = `
   }
 
   .toolbar__btn:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 
   .toolbar__icon-btn {

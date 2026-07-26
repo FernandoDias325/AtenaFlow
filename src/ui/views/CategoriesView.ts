@@ -76,7 +76,7 @@ const STYLES = `
 
   .cat-view__add-btn {
     padding: var(--space-2) var(--space-4);
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: var(--color-primary-text);
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
@@ -85,7 +85,7 @@ const STYLES = `
   }
 
   .cat-view__add-btn:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 
   .cat-view__add-btn:disabled {

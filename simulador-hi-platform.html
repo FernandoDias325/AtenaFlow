@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+  <meta charset="UTF-8">
+  <title>Simulador Hi Platform</title>
+  <style>
+    body {
+      font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
+      background-color: #f0f2f5;
+      padding: 40px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+    }
+    .chat-container {
+      width: 100%;
+      max-width: 800px;
+      background: white;
+      border-radius: 12px;
+      box-shadow: 0 4px 15px rgba(0,0,0,0.05);
+      padding: 24px;
+    }
+    /* 
+      O SEGREDO DO BUG:
+      Na Hi Platform, o campo de chat (ou seus filhos imediatos) usavam display flex.
+      O flex-direction padrão é row (horizontal). Quando a extensão usava insertText,
+      o Chrome criava <div> separados para cada linha, forçando-os a ficarem lado a lado.
+    */
+    .chat-input {
+      display: flex; 
+      gap: 10px; /* Espaço entre as linhas bugadas (colunas) */
+      align-items: flex-start;
+      
+      min-height: 300px;
+      border: 2px solid #ddd;
+      border-radius: 8px;
+      padding: 12px;
+      outline: none;
+      font-size: 15px;
+      color: #333;
+      white-space: pre-wrap; /* Mantém espaços visíveis */
+      background: #fafafa;
+    }
+    .chat-input:focus {
+      border-color: #25D366;
+      background: #fff;
+    }
+    .info {
+      margin-bottom: 24px;
+      color: #555;
+      font-size: 15px;
+      line-height: 1.6;
+      background: #e9f5ff;
+      padding: 16px;
+      border-left: 4px solid #007bff;
+      border-radius: 4px;
+    }
+    h2 {
+      margin-top: 0;
+      color: #222;
+    }
+  </style>
+</head>
+<body>
+
+  <div class="chat-container">
+    <h2>Simulador de Chat - Hi Platform</h2>
+    <div class="info">
+      <p>Este campo simula exatamente o comportamento (CSS flexbox) que causou o bug na Hi Platform.</p>
+      <p><b>Como testar a correção:</b></p>
+      <ol>
+        <li>Se certifique de que instalou a nova versão compilada (via `npm run dev` ou usando o novo .zip).</li>
+        <li>Clique no campo de texto abaixo.</li>
+        <li>Abra a AtenaFlow e injete um script que contenha múltiplas quebras de linha.</li>
+        <li>Se as linhas aparecerem <b>umas abaixo das outras (vertical)</b>, a correção funcionou perfeitamente!</li>
+        <li><i>Dica: Se a correção não estivesse aplicada, o texto ia se espalhar horizontalmente como na sua foto.</i></li>
+      </ol>
+    </div>
+
+    <!-- Campo contenteditable simulando o chat -->
+    <div class="chat-input" contenteditable="true"></div>
+  </div>
+
+</body>
+</html>

@@ -99,13 +99,13 @@ const STYLES = `
   }
 
   .notepad-toolbar__btn.active {
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: var(--color-white);
     border-color: var(--color-primary);
   }
 
   .notepad-toolbar__btn:hover.active {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 
   .notepad-toolbar__divider {

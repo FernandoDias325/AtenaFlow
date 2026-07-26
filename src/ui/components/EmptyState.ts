@@ -48,7 +48,7 @@ const STYLES = `
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-3) var(--space-5);
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: var(--color-primary-text);
     border-radius: var(--radius-md);
     font-size: var(--font-size-sm);
@@ -58,7 +58,7 @@ const STYLES = `
   }
 
   .empty-state__btn:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 
   .empty-state__btn svg {

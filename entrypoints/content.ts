@@ -71,7 +71,8 @@ export default defineContentScript({
       el.dispatchEvent(new Event('change', { bubbles: true }));
 
       // Tenta acionar o React especificamente se ele estiver guardando estado no input
-      const tracker = (el as any)._valueTracker;
+      const tracker = (el as HTMLElement & { _valueTracker?: { setValue: (v: string) => void } })
+        ._valueTracker;
       if (tracker) {
         tracker.setValue((el as HTMLInputElement).value || el.textContent || '');
       }
@@ -83,10 +84,40 @@ export default defineContentScript({
       currentFocusedElement.focus();
     }
 
-    function createPopup() {
+    async function createPopup() {
       if (popupElement) {
         popupElement.remove();
       }
+
+      const res = await chrome.storage.local.get(['atenaflow-theme']);
+      const themeId = res['atenaflow-theme'] || 'light';
+      const isLight = ['light', 'emerald-gradient', 'sunset-gradient', 'pink-gradient'].includes(
+        themeId
+      );
+
+      const getPrimary = (tid: string) => {
+        const map: Record<string, string> = {
+          light: 'hsl(230, 65%, 55%)',
+          dark: 'hsl(230, 70%, 65%)',
+          'purple-gradient': 'linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%))',
+          'pink-gradient': 'linear-gradient(135deg, hsl(320, 80%, 60%), hsl(350, 80%, 60%))',
+          'ocean-gradient': 'linear-gradient(135deg, hsl(190, 85%, 50%), hsl(220, 85%, 55%))',
+          'emerald-gradient': 'linear-gradient(135deg, hsl(145, 80%, 42%), hsl(175, 80%, 38%))',
+          'sunset-gradient': 'linear-gradient(135deg, hsl(35, 95%, 55%), hsl(10, 90%, 60%))',
+          'crimson-gradient': 'linear-gradient(135deg, hsl(350, 85%, 55%), hsl(15, 85%, 50%))'
+        };
+        return map[tid] || map['light'];
+      };
+
+      const primaryColor = getPrimary(themeId);
+      const containerBg = isLight ? 'rgba(250, 250, 250, 0.85)' : 'rgba(30, 30, 30, 0.85)';
+      const textColor = isLight ? '#1a1a1a' : '#fff';
+      const textSecondary = isLight ? '#666' : '#888';
+      const borderColor = isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
+      const inputBg = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(0, 0, 0, 0.2)';
+      const hoverBg = isLight ? 'rgba(0, 0, 0, 0.05)' : 'rgba(255, 255, 255, 0.1)';
+      const scrollThumb = isLight ? 'rgba(0, 0, 0, 0.2)' : 'rgba(255, 255, 255, 0.2)';
+      const scrollThumbHover = isLight ? 'rgba(0, 0, 0, 0.3)' : 'rgba(255, 255, 255, 0.3)';
 
       const rect = currentFocusedElement!.getBoundingClientRect();
 
@@ -132,24 +163,24 @@ export default defineContentScript({
       style.textContent = `
         ::-webkit-scrollbar { width: 6px; }
         ::-webkit-scrollbar-track { background: transparent; }
-        ::-webkit-scrollbar-thumb { background: rgba(255, 255, 255, 0.2); border-radius: 4px; }
-        ::-webkit-scrollbar-thumb:hover { background: rgba(255, 255, 255, 0.3); }
+        ::-webkit-scrollbar-thumb { background: ${scrollThumb}; border-radius: 4px; }
+        ::-webkit-scrollbar-thumb:hover { background: ${scrollThumbHover}; }
       `;
       shadow.appendChild(style);
 
       const container = document.createElement('div');
       container.style.cssText = `
-        background: rgba(30, 30, 30, 0.85);
+        background: ${containerBg};
         backdrop-filter: blur(12px);
         -webkit-backdrop-filter: blur(12px);
-        border: 1px solid rgba(255, 255, 255, 0.1);
+        border: 1px solid ${borderColor};
         border-radius: 10px;
         box-shadow: 0 8px 32px rgba(0,0,0,0.4);
         width: 250px;
         max-height: 300px;
         overflow-y: auto;
         font-family: 'Inter', system-ui, -apple-system, sans-serif;
-        color: #fff;
+        color: ${textColor};
         padding: 8px;
         box-sizing: border-box;
       `;
@@ -158,7 +189,7 @@ export default defineContentScript({
       loading.textContent = 'Carregando scripts...';
       loading.style.padding = '8px';
       loading.style.fontSize = '12px';
-      loading.style.color = '#888';
+      loading.style.color = textSecondary;
       container.appendChild(loading);
 
       shadow.appendChild(container);
@@ -175,7 +206,7 @@ export default defineContentScript({
           empty.textContent = 'Nenhum script encontrado.';
           empty.style.padding = '8px';
           empty.style.fontSize = '12px';
-          empty.style.color = '#888';
+          empty.style.color = textSecondary;
           container.appendChild(empty);
           return;
         }
@@ -192,7 +223,7 @@ export default defineContentScript({
         title.textContent = 'AtenaFlow Scripts';
         title.style.fontSize = '11px';
         title.style.fontWeight = '600';
-        title.style.color = '#888';
+        title.style.color = textSecondary;
         title.style.textTransform = 'uppercase';
         title.style.letterSpacing = '0.5px';
         title.style.marginBottom = '6px';
@@ -207,19 +238,18 @@ export default defineContentScript({
           width: 100%;
           padding: 6px 8px;
           margin-bottom: 8px;
-          border: 1px solid rgba(255, 255, 255, 0.15);
+          border: 1px solid ${borderColor};
           border-radius: 6px;
-          background: rgba(0, 0, 0, 0.2);
-          color: #fff;
+          background: ${inputBg};
+          color: ${textColor};
           font-family: 'Inter', system-ui, -apple-system, sans-serif;
           font-size: 13px;
           outline: none;
           box-sizing: border-box;
         `;
         searchInput.onfocus = () =>
-          (searchInput.style.border = '1px solid rgba(255, 255, 255, 0.3)');
-        searchInput.onblur = () =>
-          (searchInput.style.border = '1px solid rgba(255, 255, 255, 0.15)');
+          (searchInput.style.border = `1px solid ${isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)'}`);
+        searchInput.onblur = () => (searchInput.style.border = `1px solid ${borderColor}`);
 
         // Evita que clicar no input feche o popup (se tivermos lógica global de click)
         searchInput.onclick = (e) => {
@@ -242,7 +272,7 @@ export default defineContentScript({
         container.appendChild(viewList);
         container.appendChild(viewEdit);
 
-        const showEditModal = (script: any) => {
+        const showEditModal = (script: { id: string; title: string; body: string }) => {
           viewList.style.display = 'none';
           viewEdit.style.display = 'flex';
           viewEdit.innerHTML = '';
@@ -251,13 +281,15 @@ export default defineContentScript({
           editTitle.textContent = 'Editar e Injetar';
           editTitle.style.fontSize = '12px';
           editTitle.style.fontWeight = '600';
-          editTitle.style.color = '#fff';
+          editTitle.style.color = textColor;
           editTitle.style.marginBottom = '8px';
           viewEdit.appendChild(editTitle);
 
           // Limpa slots antigos da textarea, se houver
           const oldTextarea = popupElement!.querySelector('textarea[slot="edit-textarea"]');
-          if (oldTextarea) oldTextarea.remove();
+          if (oldTextarea) {
+            oldTextarea.remove();
+          }
 
           const textarea = document.createElement('textarea');
           textarea.slot = 'edit-textarea';
@@ -266,10 +298,10 @@ export default defineContentScript({
             width: 100%;
             min-height: 120px;
             padding: 8px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid ${borderColor};
             border-radius: 6px;
-            background: rgba(0,0,0,0.3);
-            color: #fff;
+            background: ${inputBg};
+            color: ${textColor};
             font-family: 'Inter', system-ui, -apple-system, sans-serif;
             font-size: 13px;
             resize: vertical;
@@ -278,8 +310,8 @@ export default defineContentScript({
             margin-bottom: 12px;
           `;
           textarea.onfocus = () =>
-            (textarea.style.border = '1px solid var(--color-primary-soft, #5a9)');
-          textarea.onblur = () => (textarea.style.border = '1px solid rgba(255,255,255,0.2)');
+            (textarea.style.border = `1px solid ${isLight ? 'rgba(0,0,0,0.3)' : 'rgba(255,255,255,0.3)'}`);
+          textarea.onblur = () => (textarea.style.border = `1px solid ${borderColor}`);
 
           textarea.onclick = (e) => e.stopPropagation();
           textarea.onmousedown = (e) => {
@@ -302,9 +334,9 @@ export default defineContentScript({
           cancelBtn.textContent = 'Cancelar';
           cancelBtn.style.cssText = `
             padding: 6px 12px;
-            border: 1px solid rgba(255,255,255,0.2);
+            border: 1px solid ${borderColor};
             background: transparent;
-            color: #fff;
+            color: ${textColor};
             border-radius: 4px;
             cursor: pointer;
             font-size: 12px;
@@ -321,7 +353,7 @@ export default defineContentScript({
           okBtn.style.cssText = `
             padding: 6px 16px;
             border: none;
-            background: #25D366;
+            background: ${primaryColor};
             color: #fff;
             border-radius: 4px;
             cursor: pointer;
@@ -342,7 +374,7 @@ export default defineContentScript({
 
         const renderList = (filterText: string) => {
           listContainer.innerHTML = '';
-          const filtered = scripts.filter((s: any) =>
+          const filtered = scripts.filter((s: { title: string; id: string; body: string }) =>
             s.title.toLowerCase().includes(filterText.toLowerCase())
           );
 
@@ -351,12 +383,12 @@ export default defineContentScript({
             empty.textContent = 'Nenhum script encontrado.';
             empty.style.padding = '8px 4px';
             empty.style.fontSize = '12px';
-            empty.style.color = '#888';
+            empty.style.color = textSecondary;
             listContainer.appendChild(empty);
             return;
           }
 
-          filtered.forEach((script: any) => {
+          filtered.forEach((script: { id: string; title: string; body: string }) => {
             const item = document.createElement('div');
             item.style.cssText = `
               display: flex;
@@ -368,9 +400,9 @@ export default defineContentScript({
               font-size: 13px;
               margin-bottom: 2px;
               transition: background 0.15s ease;
-              color: #eee;
+              color: ${textColor};
             `;
-            item.onmouseenter = () => (item.style.background = 'rgba(255, 255, 255, 0.1)');
+            item.onmouseenter = () => (item.style.background = hoverBg);
             item.onmouseleave = () => (item.style.background = 'transparent');
 
             const titleSpan = document.createElement('span');
@@ -394,7 +426,7 @@ export default defineContentScript({
             editBtn.style.cssText = `
               background: transparent;
               border: none;
-              color: rgba(255,255,255,0.5);
+              color: ${textSecondary};
               cursor: pointer;
               padding: 4px;
               display: flex;
@@ -403,8 +435,8 @@ export default defineContentScript({
               border-radius: 4px;
               margin-left: 8px;
             `;
-            editBtn.onmouseenter = () => (editBtn.style.color = '#fff');
-            editBtn.onmouseleave = () => (editBtn.style.color = 'rgba(255,255,255,0.5)');
+            editBtn.onmouseenter = () => (editBtn.style.color = textColor);
+            editBtn.onmouseleave = () => (editBtn.style.color = textSecondary);
             editBtn.onclick = (e) => {
               e.preventDefault();
               e.stopPropagation();
@@ -453,13 +485,17 @@ export default defineContentScript({
       let isDragging = false;
 
       iconElement.onmouseenter = () => {
-        if (isDragging) return;
+        if (isDragging) {
+          return;
+        }
         iconElement!.style.opacity = '1';
         iconElement!.style.transform = 'scale(1.1)';
         iconElement!.style.boxShadow = '0 2px 6px rgba(0,0,0,0.3)';
       };
       iconElement.onmouseleave = () => {
-        if (isDragging) return;
+        if (isDragging) {
+          return;
+        }
         iconElement!.style.opacity = '0.5';
         iconElement!.style.transform = 'scale(1)';
         iconElement!.style.boxShadow = '0 1px 3px rgba(0,0,0,0.2)';

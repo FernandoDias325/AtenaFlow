@@ -90,6 +90,8 @@
   --color-primary-hover: hsl(230, 65%, 48%);
   --color-primary-soft: hsl(230, 60%, 95%);
   --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: var(--color-primary);
+  --bg-primary-hover: var(--color-primary-hover);
 
   /* ─── Superfícies ──────────────────────────────────────────────────── */
   --color-bg: hsl(40, 15%, 98%);
@@ -154,6 +156,8 @@
   --color-primary-hover: hsl(230, 70%, 72%);
   --color-primary-soft: hsl(230, 40%, 18%);
   --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: var(--color-primary);
+  --bg-primary-hover: var(--color-primary-hover);
 
   /* ─── Superfícies ──────────────────────────────────────────────────── */
   --color-bg: hsl(220, 14%, 12%);
@@ -207,6 +211,353 @@
   --color-scrollbar-thumb: hsl(220, 10%, 30%);
   --color-scrollbar-track: transparent;
 }
+
+/* ═══════════════════════════════════════════════════════════════════════════
+   TEMAS COM DEGRADÊ (PURPLE & PINK)
+   ═══════════════════════════════════════════════════════════════════════════ */
+
+[data-theme='purple-gradient'] {
+  --color-primary: hsl(270, 75%, 65%);
+  --color-primary-hover: hsl(270, 75%, 72%);
+  --color-primary-soft: hsl(270, 40%, 18%);
+  --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%));
+  --bg-primary-hover: linear-gradient(135deg, hsl(260, 80%, 70%), hsl(290, 80%, 65%));
+
+  /* Superfícies escuras com toque roxo */
+  --color-bg: hsl(260, 15%, 11%);
+  --color-bg-secondary: hsl(260, 15%, 14%);
+  --color-bg-tertiary: hsl(260, 15%, 17%);
+  --color-bg-hover: hsl(260, 15%, 17%);
+  --color-bg-active: hsl(260, 15%, 21%);
+
+  /* Textos */
+  --color-text: hsl(260, 10%, 90%);
+  --color-text-secondary: hsl(260, 8%, 65%);
+  --color-text-tertiary: hsl(260, 8%, 50%);
+  --color-text-placeholder: hsl(260, 8%, 45%);
+
+  /* Bordas */
+  --color-border: hsl(260, 12%, 20%);
+  --color-border-hover: hsl(260, 12%, 28%);
+  --color-border-focus: var(--color-primary);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px hsla(260, 50%, 3%, 0.3);
+  --shadow-md: 0 2px 8px hsla(260, 50%, 3%, 0.4);
+  --shadow-lg: 0 4px 16px hsla(260, 50%, 3%, 0.5);
+  --shadow-xl: 0 8px 32px hsla(260, 50%, 3%, 0.6);
+
+  /* Feedback */
+  --color-success: hsl(152, 55%, 52%);
+  --color-success-soft: hsl(152, 30%, 16%);
+  --color-error: hsl(0, 65%, 60%);
+  --color-error-soft: hsl(0, 35%, 16%);
+  --color-warning: hsl(38, 90%, 55%);
+  --color-warning-soft: hsl(38, 40%, 16%);
+  --color-info: hsl(210, 60%, 60%);
+  --color-info-soft: hsl(210, 30%, 16%);
+
+  --color-overlay: hsla(260, 50%, 3%, 0.7);
+
+  /* Tags */
+  --color-tag-blue: hsl(230, 65%, 68%);
+  --color-tag-teal: hsl(162, 50%, 58%);
+  --color-tag-coral: hsl(14, 60%, 65%);
+  --color-tag-violet: hsl(268, 50%, 70%);
+  --color-tag-amber: hsl(38, 70%, 62%);
+  --color-tag-green: hsl(142, 45%, 55%);
+
+  --color-bg-list: var(--color-bg-secondary);
+  --color-scrollbar-thumb: hsl(260, 10%, 28%);
+  --color-scrollbar-track: transparent;
+}
+
+[data-theme='pink-gradient'] {
+  --color-primary: hsl(330, 75%, 58%);
+  --color-primary-hover: hsl(330, 75%, 65%);
+  --color-primary-soft: hsl(330, 60%, 95%);
+  --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: linear-gradient(135deg, hsl(320, 80%, 60%), hsl(350, 80%, 60%));
+  --bg-primary-hover: linear-gradient(135deg, hsl(320, 80%, 65%), hsl(350, 80%, 65%));
+
+  /* Superfícies claras com tom de rosa pastel */
+  --color-bg: hsl(340, 45%, 96%);
+  --color-bg-secondary: hsl(340, 45%, 93%);
+  --color-bg-tertiary: hsl(340, 45%, 90%);
+  --color-bg-hover: hsl(340, 45%, 91%);
+  --color-bg-active: hsl(340, 45%, 88%);
+
+  /* Textos */
+  --color-text: hsl(340, 10%, 15%);
+  --color-text-secondary: hsl(340, 5%, 45%);
+  --color-text-tertiary: hsl(340, 5%, 60%);
+  --color-text-placeholder: hsl(340, 5%, 65%);
+
+  /* Bordas */
+  --color-border: hsl(340, 8%, 88%);
+  --color-border-hover: hsl(340, 8%, 78%);
+  --color-border-focus: var(--color-primary);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px hsla(340, 10%, 10%, 0.04);
+  --shadow-md: 0 2px 8px hsla(340, 10%, 10%, 0.06);
+  --shadow-lg: 0 4px 16px hsla(340, 10%, 10%, 0.08);
+  --shadow-xl: 0 8px 32px hsla(340, 10%, 10%, 0.12);
+
+  /* Feedback */
+  --color-success: hsl(152, 55%, 42%);
+  --color-success-soft: hsl(152, 50%, 94%);
+  --color-error: hsl(0, 65%, 55%);
+  --color-error-soft: hsl(0, 60%, 95%);
+  --color-warning: hsl(38, 90%, 50%);
+  --color-warning-soft: hsl(38, 85%, 95%);
+  --color-info: hsl(210, 60%, 52%);
+  --color-info-soft: hsl(210, 55%, 95%);
+
+  --color-overlay: hsla(340, 10%, 10%, 0.3);
+
+  /* Tags */
+  --color-tag-blue: hsl(230, 60%, 60%);
+  --color-tag-teal: hsl(162, 45%, 50%);
+  --color-tag-coral: hsl(14, 65%, 60%);
+  --color-tag-violet: hsl(268, 45%, 62%);
+  --color-tag-amber: hsl(38, 75%, 55%);
+  --color-tag-green: hsl(142, 50%, 48%);
+
+  --color-bg-list: var(--color-bg-secondary);
+  --color-scrollbar-thumb: hsl(340, 5%, 80%);
+  --color-scrollbar-track: transparent;
+}
+
+[data-theme='ocean-gradient'] {
+  --color-primary: hsl(200, 80%, 55%);
+  --color-primary-hover: hsl(200, 80%, 65%);
+  --color-primary-soft: hsl(200, 40%, 20%);
+  --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: linear-gradient(135deg, hsl(190, 85%, 50%), hsl(220, 85%, 55%));
+  --bg-primary-hover: linear-gradient(135deg, hsl(190, 85%, 55%), hsl(220, 85%, 60%));
+
+  /* Superfícies escuras oceânicas */
+  --color-bg: hsl(210, 20%, 10%);
+  --color-bg-secondary: hsl(210, 20%, 13%);
+  --color-bg-tertiary: hsl(210, 20%, 16%);
+  --color-bg-hover: hsl(210, 20%, 16%);
+  --color-bg-active: hsl(210, 20%, 20%);
+
+  /* Textos */
+  --color-text: hsl(210, 10%, 90%);
+  --color-text-secondary: hsl(210, 8%, 65%);
+  --color-text-tertiary: hsl(210, 8%, 50%);
+  --color-text-placeholder: hsl(210, 8%, 45%);
+
+  /* Bordas */
+  --color-border: hsl(210, 15%, 20%);
+  --color-border-hover: hsl(210, 15%, 28%);
+  --color-border-focus: var(--color-primary);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px hsla(210, 50%, 3%, 0.3);
+  --shadow-md: 0 2px 8px hsla(210, 50%, 3%, 0.4);
+  --shadow-lg: 0 4px 16px hsla(210, 50%, 3%, 0.5);
+  --shadow-xl: 0 8px 32px hsla(210, 50%, 3%, 0.6);
+
+  /* Feedback */
+  --color-success: hsl(152, 55%, 52%);
+  --color-success-soft: hsl(152, 30%, 16%);
+  --color-error: hsl(0, 65%, 60%);
+  --color-error-soft: hsl(0, 35%, 16%);
+  --color-warning: hsl(38, 90%, 55%);
+  --color-warning-soft: hsl(38, 40%, 16%);
+  --color-info: hsl(210, 60%, 60%);
+  --color-info-soft: hsl(210, 30%, 16%);
+
+  --color-overlay: hsla(210, 50%, 3%, 0.7);
+
+  /* Tags */
+  --color-tag-blue: hsl(230, 65%, 68%);
+  --color-tag-teal: hsl(162, 50%, 58%);
+  --color-tag-coral: hsl(14, 60%, 65%);
+  --color-tag-violet: hsl(268, 50%, 70%);
+  --color-tag-amber: hsl(38, 70%, 62%);
+  --color-tag-green: hsl(142, 45%, 55%);
+
+  --color-bg-list: var(--color-bg-secondary);
+  --color-scrollbar-thumb: hsl(210, 10%, 28%);
+  --color-scrollbar-track: transparent;
+}
+
+[data-theme='emerald-gradient'] {
+  --color-primary: hsl(155, 75%, 42%);
+  --color-primary-hover: hsl(155, 75%, 35%);
+  --color-primary-soft: hsl(155, 60%, 90%);
+  --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: linear-gradient(135deg, hsl(145, 80%, 42%), hsl(175, 80%, 38%));
+  --bg-primary-hover: linear-gradient(135deg, hsl(145, 80%, 35%), hsl(175, 80%, 32%));
+
+  /* Superfícies claras esverdeadas */
+  --color-bg: hsl(150, 30%, 96%);
+  --color-bg-secondary: hsl(150, 30%, 93%);
+  --color-bg-tertiary: hsl(150, 30%, 90%);
+  --color-bg-hover: hsl(150, 30%, 91%);
+  --color-bg-active: hsl(150, 30%, 88%);
+
+  /* Textos */
+  --color-text: hsl(150, 15%, 15%);
+  --color-text-secondary: hsl(150, 10%, 45%);
+  --color-text-tertiary: hsl(150, 10%, 60%);
+  --color-text-placeholder: hsl(150, 10%, 65%);
+
+  /* Bordas */
+  --color-border: hsl(150, 15%, 86%);
+  --color-border-hover: hsl(150, 15%, 78%);
+  --color-border-focus: var(--color-primary);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px hsla(150, 15%, 10%, 0.04);
+  --shadow-md: 0 2px 8px hsla(150, 15%, 10%, 0.06);
+  --shadow-lg: 0 4px 16px hsla(150, 15%, 10%, 0.08);
+  --shadow-xl: 0 8px 32px hsla(150, 15%, 10%, 0.12);
+
+  /* Feedback */
+  --color-success: hsl(152, 60%, 40%);
+  --color-success-soft: hsl(152, 50%, 90%);
+  --color-error: hsl(0, 65%, 55%);
+  --color-error-soft: hsl(0, 60%, 95%);
+  --color-warning: hsl(38, 90%, 48%);
+  --color-warning-soft: hsl(38, 85%, 95%);
+  --color-info: hsl(210, 60%, 52%);
+  --color-info-soft: hsl(210, 55%, 95%);
+
+  --color-overlay: hsla(150, 15%, 10%, 0.3);
+
+  /* Tags */
+  --color-tag-blue: hsl(230, 60%, 60%);
+  --color-tag-teal: hsl(162, 45%, 50%);
+  --color-tag-coral: hsl(14, 65%, 60%);
+  --color-tag-violet: hsl(268, 45%, 62%);
+  --color-tag-amber: hsl(38, 75%, 55%);
+  --color-tag-green: hsl(142, 50%, 48%);
+
+  --color-bg-list: var(--color-bg-secondary);
+  --color-scrollbar-thumb: hsl(150, 10%, 80%);
+  --color-scrollbar-track: transparent;
+}
+
+[data-theme='sunset-gradient'] {
+  --color-primary: hsl(25, 90%, 55%);
+  --color-primary-hover: hsl(25, 90%, 48%);
+  --color-primary-soft: hsl(25, 80%, 93%);
+  --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: linear-gradient(135deg, hsl(35, 95%, 55%), hsl(10, 90%, 60%));
+  --bg-primary-hover: linear-gradient(135deg, hsl(35, 95%, 48%), hsl(10, 90%, 53%));
+
+  /* Superfícies claras quentes */
+  --color-bg: hsl(30, 40%, 96%);
+  --color-bg-secondary: hsl(30, 40%, 93%);
+  --color-bg-tertiary: hsl(30, 40%, 90%);
+  --color-bg-hover: hsl(30, 40%, 91%);
+  --color-bg-active: hsl(30, 40%, 88%);
+
+  /* Textos */
+  --color-text: hsl(30, 15%, 15%);
+  --color-text-secondary: hsl(30, 10%, 45%);
+  --color-text-tertiary: hsl(30, 10%, 60%);
+  --color-text-placeholder: hsl(30, 10%, 65%);
+
+  /* Bordas */
+  --color-border: hsl(30, 15%, 86%);
+  --color-border-hover: hsl(30, 15%, 78%);
+  --color-border-focus: var(--color-primary);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px hsla(30, 15%, 10%, 0.04);
+  --shadow-md: 0 2px 8px hsla(30, 15%, 10%, 0.06);
+  --shadow-lg: 0 4px 16px hsla(30, 15%, 10%, 0.08);
+  --shadow-xl: 0 8px 32px hsla(30, 15%, 10%, 0.12);
+
+  /* Feedback */
+  --color-success: hsl(152, 60%, 40%);
+  --color-success-soft: hsl(152, 50%, 90%);
+  --color-error: hsl(0, 65%, 55%);
+  --color-error-soft: hsl(0, 60%, 95%);
+  --color-warning: hsl(38, 90%, 48%);
+  --color-warning-soft: hsl(38, 85%, 95%);
+  --color-info: hsl(210, 60%, 52%);
+  --color-info-soft: hsl(210, 55%, 95%);
+
+  --color-overlay: hsla(30, 15%, 10%, 0.3);
+
+  /* Tags */
+  --color-tag-blue: hsl(230, 60%, 60%);
+  --color-tag-teal: hsl(162, 45%, 50%);
+  --color-tag-coral: hsl(14, 65%, 60%);
+  --color-tag-violet: hsl(268, 45%, 62%);
+  --color-tag-amber: hsl(38, 75%, 55%);
+  --color-tag-green: hsl(142, 50%, 48%);
+
+  --color-bg-list: var(--color-bg-secondary);
+  --color-scrollbar-thumb: hsl(30, 10%, 80%);
+  --color-scrollbar-track: transparent;
+}
+
+[data-theme='crimson-gradient'] {
+  --color-primary: hsl(350, 80%, 60%);
+  --color-primary-hover: hsl(350, 80%, 65%);
+  --color-primary-soft: hsl(350, 40%, 20%);
+  --color-primary-text: hsl(0, 0%, 100%);
+  --bg-primary: linear-gradient(135deg, hsl(350, 85%, 55%), hsl(15, 85%, 50%));
+  --bg-primary-hover: linear-gradient(135deg, hsl(350, 85%, 60%), hsl(15, 85%, 55%));
+
+  /* Superfícies escuras rubis */
+  --color-bg: hsl(350, 15%, 11%);
+  --color-bg-secondary: hsl(350, 15%, 14%);
+  --color-bg-tertiary: hsl(350, 15%, 17%);
+  --color-bg-hover: hsl(350, 15%, 17%);
+  --color-bg-active: hsl(350, 15%, 21%);
+
+  /* Textos */
+  --color-text: hsl(350, 10%, 90%);
+  --color-text-secondary: hsl(350, 8%, 65%);
+  --color-text-tertiary: hsl(350, 8%, 50%);
+  --color-text-placeholder: hsl(350, 8%, 45%);
+
+  /* Bordas */
+  --color-border: hsl(350, 15%, 20%);
+  --color-border-hover: hsl(350, 15%, 28%);
+  --color-border-focus: var(--color-primary);
+
+  /* Sombras */
+  --shadow-sm: 0 1px 2px hsla(350, 50%, 3%, 0.3);
+  --shadow-md: 0 2px 8px hsla(350, 50%, 3%, 0.4);
+  --shadow-lg: 0 4px 16px hsla(350, 50%, 3%, 0.5);
+  --shadow-xl: 0 8px 32px hsla(350, 50%, 3%, 0.6);
+
+  /* Feedback */
+  --color-success: hsl(152, 55%, 52%);
+  --color-success-soft: hsl(152, 30%, 16%);
+  --color-error: hsl(0, 65%, 60%);
+  --color-error-soft: hsl(0, 35%, 16%);
+  --color-warning: hsl(38, 90%, 55%);
+  --color-warning-soft: hsl(38, 40%, 16%);
+  --color-info: hsl(210, 60%, 60%);
+  --color-info-soft: hsl(210, 30%, 16%);
+
+  --color-overlay: hsla(350, 50%, 3%, 0.7);
+
+  /* Tags */
+  --color-tag-blue: hsl(230, 65%, 68%);
+  --color-tag-teal: hsl(162, 50%, 58%);
+  --color-tag-coral: hsl(14, 60%, 65%);
+  --color-tag-violet: hsl(268, 50%, 70%);
+  --color-tag-amber: hsl(38, 70%, 62%);
+  --color-tag-green: hsl(142, 45%, 55%);
+
+  --color-bg-list: var(--color-bg-secondary);
+  --color-scrollbar-thumb: hsl(350, 10%, 28%);
+  --color-scrollbar-track: transparent;
+}
+
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ESTILOS GLOBAIS BASE

@@ -107,13 +107,13 @@ const STYLES = `
   }
 
   .settings-btn--primary {
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: var(--color-primary-text);
     border: 1px solid var(--color-primary);
   }
 
   .settings-btn--primary:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 `;
 
@@ -198,37 +198,155 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
   const themeTitle = document.createElement('h3');
   themeTitle.className = 'settings-section__title';
-  themeTitle.textContent = 'Aparência';
+  themeTitle.textContent = 'Aparência e Cores';
   themeSection.appendChild(themeTitle);
 
   const themeDesc = document.createElement('p');
   themeDesc.className = 'settings-section__desc';
-  themeDesc.textContent = 'Alterne entre o tema claro e escuro.';
+  themeDesc.textContent =
+    'Personalize as cores e o tema da extensão para combinar com o seu estilo.';
   themeSection.appendChild(themeDesc);
+
+  const themeGrid = document.createElement('div');
+  themeGrid.style.display = 'flex';
+  themeGrid.style.gap = 'var(--space-3)';
+  themeGrid.style.flexWrap = 'wrap';
 
   const currentTheme = localStorage.getItem('atenaflow-theme') || 'light';
 
-  const themeBtn = document.createElement('button');
-  themeBtn.className = 'settings-btn settings-btn--outline';
-  // Configura ícone baseado no tema atual
-  const setBtnIcon = (theme: string) => {
-    if (theme === 'dark') {
-      themeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><circle cx="12" cy="12" r="5"/><path d="M12 1v2M12 21v2M4.22 4.22l1.42 1.42M18.36 18.36l1.42 1.42M1 12h2M21 12h2M4.22 19.78l1.42-1.42M18.36 5.64l1.42-1.42"/></svg> Mudar para Claro`;
-    } else {
-      themeBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg> Mudar para Escuro`;
+  const themes = [
+    { id: 'light', name: 'Claro', color: 'hsl(230, 65%, 55%)', bg: 'hsl(40, 15%, 98%)' },
+    { id: 'dark', name: 'Escuro', color: 'hsl(230, 70%, 65%)', bg: 'hsl(220, 14%, 12%)' },
+    {
+      id: 'purple-gradient',
+      name: 'Roxo Místico',
+      color: 'linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%))',
+      bg: 'hsl(260, 15%, 11%)'
+    },
+    {
+      id: 'pink-gradient',
+      name: 'Rosa Vibrante',
+      color: 'linear-gradient(135deg, hsl(320, 80%, 60%), hsl(350, 80%, 60%))',
+      bg: 'hsl(340, 45%, 96%)'
+    },
+    {
+      id: 'ocean-gradient',
+      name: 'Azul Oceano',
+      color: 'linear-gradient(135deg, hsl(190, 85%, 50%), hsl(220, 85%, 55%))',
+      bg: 'hsl(210, 20%, 10%)'
+    },
+    {
+      id: 'emerald-gradient',
+      name: 'Verde Esmeralda',
+      color: 'linear-gradient(135deg, hsl(145, 80%, 42%), hsl(175, 80%, 38%))',
+      bg: 'hsl(150, 30%, 96%)'
+    },
+    {
+      id: 'sunset-gradient',
+      name: 'Âmbar Solar',
+      color: 'linear-gradient(135deg, hsl(35, 95%, 55%), hsl(10, 90%, 60%))',
+      bg: 'hsl(30, 40%, 96%)'
+    },
+    {
+      id: 'crimson-gradient',
+      name: 'Carmim',
+      color: 'linear-gradient(135deg, hsl(350, 85%, 55%), hsl(15, 85%, 50%))',
+      bg: 'hsl(350, 15%, 11%)'
     }
-  };
-  setBtnIcon(currentTheme);
+  ];
 
-  themeBtn.addEventListener('click', () => {
-    const isDark = document.documentElement.getAttribute('data-theme') === 'dark';
-    const newTheme = isDark ? 'light' : 'dark';
-    document.documentElement.setAttribute('data-theme', newTheme);
-    localStorage.setItem('atenaflow-theme', newTheme);
-    setBtnIcon(newTheme);
+  themes.forEach((theme) => {
+    const btn = document.createElement('button');
+    btn.className = 'settings-theme-btn';
+    btn.style.cssText = `
+      display: flex;
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-radius: var(--radius-md);
+      border: 2px solid ${currentTheme === theme.id ? 'var(--color-primary)' : 'var(--color-border)'};
+      background-color: var(--color-bg);
+      cursor: pointer;
+      transition: all var(--transition-fast);
+      width: calc(50% - 6px);
+    `;
+
+    const circle = document.createElement('div');
+
+    // Check if theme.color is a gradient or a solid color
+    // If it's a gradient, we can just use the solid base color for the split, or just use the gradient as the bottom half.
+    // An elegant way is to use a container with overflow hidden and two halves.
+    circle.style.cssText = `
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      border: 1px solid var(--color-border);
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      position: relative;
+      overflow: hidden;
+      background: ${theme.bg};
+      flex-shrink: 0;
+    `;
+
+    const accentHalf = document.createElement('div');
+    accentHalf.style.cssText = `
+      position: absolute;
+      bottom: 0;
+      right: 0;
+      width: 100%;
+      height: 100%;
+      background: ${theme.color};
+      clip-path: polygon(100% 0, 100% 100%, 0 100%);
+    `;
+
+    circle.appendChild(accentHalf);
+
+    const label = document.createElement('span');
+    label.textContent = theme.name;
+    label.style.fontSize = 'var(--font-size-xs)';
+    label.style.fontWeight =
+      currentTheme === theme.id ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)';
+    label.style.color =
+      currentTheme === theme.id ? 'var(--color-text)' : 'var(--color-text-secondary)';
+    label.style.textAlign = 'left';
+
+    btn.appendChild(circle);
+    btn.appendChild(label);
+
+    btn.addEventListener('click', () => {
+      document.documentElement.setAttribute('data-theme', theme.id);
+      localStorage.setItem('atenaflow-theme', theme.id);
+      chrome.storage.local.set({ 'atenaflow-theme': theme.id });
+
+      // Update UI state
+      Array.from(themeGrid.children).forEach((child) => {
+        (child as HTMLElement).style.borderColor = 'var(--color-border)';
+        (child.querySelector('span') as HTMLElement).style.fontWeight = 'var(--font-weight-medium)';
+        (child.querySelector('span') as HTMLElement).style.color = 'var(--color-text-secondary)';
+      });
+      btn.style.borderColor = 'var(--color-primary)';
+      label.style.fontWeight = 'var(--font-weight-semibold)';
+      label.style.color = 'var(--color-text)';
+    });
+
+    // Hover effect
+    btn.addEventListener('mouseenter', () => {
+      if (localStorage.getItem('atenaflow-theme') !== theme.id) {
+        btn.style.borderColor = 'var(--color-border-hover)';
+      }
+    });
+    btn.addEventListener('mouseleave', () => {
+      if (localStorage.getItem('atenaflow-theme') !== theme.id) {
+        btn.style.borderColor = 'var(--color-border)';
+      }
+    });
+
+    themeGrid.appendChild(btn);
   });
 
-  themeSection.appendChild(themeBtn);
+  themeSection.appendChild(themeGrid);
   content.appendChild(themeSection);
 
   // Seção: Backup
@@ -287,8 +405,9 @@ export async function createSettingsView(): Promise<HTMLElement> {
         emit('toast', { message: 'Backup importado com sucesso!', type: 'success' });
         // Reseta o input para permitir importar o mesmo arquivo
         importInput.value = '';
-      } catch (err: any) {
-        emit('toast', { message: err.message || 'Falha ao importar', type: 'error' });
+      } catch (err) {
+        const errorMsg = err instanceof Error ? err.message : 'Falha ao importar';
+        emit('toast', { message: errorMsg, type: 'error' });
       }
     };
     reader.readAsText(file);

@@ -51,7 +51,7 @@ const STYLES = `
     gap: var(--space-2);
     padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-md);
-    background-color: var(--color-primary);
+    background: var(--bg-primary);
     color: #fff;
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
@@ -61,7 +61,7 @@ const STYLES = `
   }
 
   .links-view__add-btn:hover {
-    background-color: var(--color-primary-hover);
+    background: var(--bg-primary-hover);
   }
 
   .links-view__content {
