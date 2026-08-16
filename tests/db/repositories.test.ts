@@ -16,6 +16,7 @@ import { closeDB } from '../../src/core/db/schema';
 import * as ScriptsRepo from '../../src/core/db/scripts.repository';
 import * as CategoriesRepo from '../../src/core/db/categories.repository';
 import * as HistoryRepo from '../../src/core/db/history.repository';
+import * as LinksRepo from '../../src/core/db/links.repository';
 import { MAX_COPY_HISTORY_ENTRIES } from '../../src/core/models/types';
 
 // ─── Setup e Teardown ────────────────────────────────────────────────────────
@@ -301,6 +302,15 @@ describe('CategoriesRepository', () => {
       expect(cat1.name).toBe('Vendas');
       expect(cat1.color).toBe('#3B82F6');
     });
+
+    it('deve padronizar o nome e impedir categorias repetidas', async () => {
+      const created = await CategoriesRepo.createCategory({ name: '  atenção  ', color: '#000' });
+
+      expect(created.name).toBe('Atenção');
+      await expect(
+        CategoriesRepo.createCategory({ name: 'ATENCAO', color: '#111' })
+      ).rejects.toBeInstanceOf(CategoriesRepo.CategoryNameConflictError);
+    });
   });
 
   describe('getCategory', () => {
@@ -350,6 +360,15 @@ describe('CategoriesRepository', () => {
       const result = await CategoriesRepo.updateCategory('id-fake', { name: 'Nada' });
       expect(result).toBeUndefined();
     });
+
+    it('deve impedir renomear uma categoria para um nome existente', async () => {
+      await CategoriesRepo.createCategory({ name: 'Vendas', color: '#000' });
+      const suporte = await CategoriesRepo.createCategory({ name: 'Suporte', color: '#111' });
+
+      await expect(
+        CategoriesRepo.updateCategory(suporte.id, { name: ' vendas ' })
+      ).rejects.toBeInstanceOf(CategoriesRepo.CategoryNameConflictError);
+    });
   });
 
   describe('deleteCategory', () => {
@@ -386,6 +405,31 @@ describe('CategoriesRepository', () => {
       expect(all[2]?.name).toBe('B');
       expect(all[2]?.order).toBe(2);
     });
+  });
+});
+
+// ═════════════════════════════════════════════════════════════════════════════
+//  LINKS REPOSITORY
+// ═════════════════════════════════════════════════════════════════════════════
+
+describe('LinksRepository', () => {
+  it('deve padronizar o título e iniciar o contador de acessos', async () => {
+    const link = await LinksRepo.createLink({
+      title: '  portal   interno ',
+      url: 'https://example.com/'
+    });
+
+    expect(link.title).toBe('Portal interno');
+    expect(link.usageCount).toBe(0);
+    expect(link.deletedAt).toBeNull();
+  });
+
+  it('deve incrementar o contador de acessos', async () => {
+    const link = await LinksRepo.createLink({ title: 'Portal', url: 'https://example.com/' });
+
+    expect(await LinksRepo.incrementUsageCount(link.id)).toBe(1);
+    expect(await LinksRepo.incrementUsageCount(link.id)).toBe(2);
+    expect((await LinksRepo.getLink(link.id))?.usageCount).toBe(2);
   });
 });
 

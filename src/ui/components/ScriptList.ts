@@ -19,7 +19,7 @@ const STYLES = `
     flex: 1;
     overflow-y: auto;
     overflow-x: hidden;
-    background-color: var(--color-bg-list, var(--color-bg-secondary));
+    background: var(--bg-list, var(--color-bg-list, var(--color-bg-secondary)));
   }
 
   .script-list__cards {

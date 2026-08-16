@@ -2,6 +2,14 @@ import { getDB } from './schema';
 import type { Link } from '../models/types';
 import { v4 as uuidv4 } from 'uuid';
 
+export function normalizeLinkTitle(title: string): string {
+  const normalized = title.trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return '';
+  }
+  return normalized.charAt(0).toLocaleUpperCase('pt-BR') + normalized.slice(1);
+}
+
 export async function getAllLinks(): Promise<Link[]> {
   const db = await getDB();
   const tx = db.transaction('links', 'readonly');
@@ -28,9 +36,12 @@ export async function createLink(data: Omit<Link, 'id' | 'createdAt' | 'order'>)
 
   const newLink: Link = {
     ...data,
+    title: normalizeLinkTitle(data.title),
     id: uuidv4(),
     createdAt: Date.now(),
-    order: maxOrder + 1
+    order: maxOrder + 1,
+    usageCount: 0,
+    deletedAt: null
   };
 
   await tx.store.add(newLink);
@@ -49,9 +60,27 @@ export async function updateLink(
     throw new Error(`Link com ID ${id} não encontrado.`);
   }
 
-  const updatedLink = { ...link, ...updates };
+  const updatedLink = {
+    ...link,
+    ...updates,
+    ...(updates.title !== undefined ? { title: normalizeLinkTitle(updates.title) } : {})
+  };
   await tx.store.put(updatedLink);
   await tx.done;
+}
+
+export async function incrementUsageCount(id: string): Promise<number | undefined> {
+  const db = await getDB();
+  const tx = db.transaction('links', 'readwrite');
+  const link = await tx.store.get(id);
+  if (!link) {
+    await tx.done;
+    return undefined;
+  }
+  link.usageCount = (link.usageCount ?? 0) + 1;
+  await tx.store.put(link);
+  await tx.done;
+  return link.usageCount;
 }
 
 export async function deleteLink(id: string): Promise<void> {

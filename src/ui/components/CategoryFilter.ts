@@ -9,6 +9,7 @@
  */
 
 import type { Category } from '../../core/models/types';
+import { normalizeCategoryName } from '../../core/db/categories.repository';
 import { emit } from '../../store/app-store';
 
 // ─── Paleta de cores de tag ──────────────────────────────────────────────────
@@ -241,7 +242,7 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
 
     // Nome
     const nameSpan = document.createElement('span');
-    nameSpan.textContent = cat.name;
+    nameSpan.textContent = normalizeCategoryName(cat.name);
     chip.appendChild(nameSpan);
 
     chip.addEventListener('click', () => onSelect(cat.id));

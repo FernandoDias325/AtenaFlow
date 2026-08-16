@@ -28,7 +28,7 @@ const STYLES = `
     height: 100vh;
     width: 100%;
     overflow: hidden;
-    background-color: var(--color-bg);
+    background: var(--bg-app, var(--color-bg));
   }
 `;
 

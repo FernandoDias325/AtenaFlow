@@ -15,35 +15,62 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-4) var(--space-5);
+    padding: 14px var(--space-4);
     border-bottom: 1px solid var(--color-border);
-    background-color: var(--color-bg);
+    background: color-mix(in srgb, var(--color-bg) 82%, transparent);
+    backdrop-filter: blur(14px);
     flex-shrink: 0;
   }
 
   .toolbar__brand {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 9px;
+    min-width: 0;
   }
 
   .toolbar__logo {
-    width: 22px;
-    height: 22px;
-    color: var(--color-primary);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    width: 30px;
+    height: 30px;
+    padding: 6px;
+    color: var(--color-primary-text);
+    background: var(--bg-primary);
+    border-radius: 10px;
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--color-primary) 30%, transparent);
+    box-sizing: border-box;
+  }
+
+  .toolbar__logo svg {
+    width: 100%;
+    height: 100%;
   }
 
   .toolbar__title {
     font-size: var(--font-size-md);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
-    letter-spacing: -0.01em;
+    letter-spacing: -0.025em;
   }
 
   .toolbar__actions {
     display: flex;
     align-items: center;
-    gap: var(--space-2);
+    gap: 7px;
+    flex-shrink: 0;
+  }
+
+  .toolbar__nav {
+    display: inline-flex;
+    align-items: center;
+    gap: 1px;
+    padding: 2px;
+    border: 1px solid color-mix(in srgb, var(--color-border) 82%, transparent);
+    border-radius: 10px;
+    background: color-mix(in srgb, var(--color-bg-secondary) 72%, transparent);
+    flex-shrink: 0;
   }
 
   .toolbar__btn {
@@ -51,13 +78,15 @@ const STYLES = `
     align-items: center;
     justify-content: center;
     gap: var(--space-1);
-    padding: var(--space-2) var(--space-3);
+    min-height: 36px;
+    padding: var(--space-2) 13px;
     background: var(--bg-primary);
     color: #fff;
-    border-radius: var(--radius-md);
+    border-radius: 10px;
     font-size: var(--font-size-xs);
     font-weight: var(--font-weight-medium);
-    transition: background-color var(--transition-fast);
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--color-primary) 24%, transparent);
+    transition: transform var(--transition-fast), box-shadow var(--transition-fast);
     border: none;
     cursor: pointer;
     white-space: nowrap;
@@ -65,29 +94,45 @@ const STYLES = `
 
   .toolbar__btn:hover {
     background: var(--bg-primary-hover);
+    transform: translateY(-1px);
+    box-shadow: 0 7px 18px color-mix(in srgb, var(--color-primary) 34%, transparent);
   }
 
   .toolbar__icon-btn {
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 32px;
-    height: 32px;
+    width: 29px;
+    height: 29px;
     background-color: transparent;
     color: var(--color-text-secondary);
-    border-radius: var(--radius-md);
+    border-radius: 7px;
     transition: all var(--transition-fast);
     border: none;
     cursor: pointer;
   }
 
   .toolbar__icon-btn:hover {
-    background-color: var(--color-bg-secondary);
+    background-color: var(--color-bg-hover);
     color: var(--color-primary);
   }
 
   .toolbar__btn svg, .toolbar__icon-btn svg {
     flex-shrink: 0;
+  }
+
+  /* Compensa diferenças de escala do Windows e da moldura da janela. */
+  @media (max-width: 355px) {
+    .toolbar { padding-inline: 10px; }
+    .toolbar__actions { gap: 5px; }
+    .toolbar__btn { width: 36px; padding-inline: 0; }
+    .toolbar__btn span { display: none; }
+    .toolbar__icon-btn { width: 27px; height: 27px; }
+  }
+
+  @media (max-width: 305px) {
+    .toolbar__title { display: none; }
+    .toolbar__brand { gap: 0; }
   }
 `;
 
@@ -135,6 +180,10 @@ export function createToolbar(): HTMLElement {
   // ─── Ações ─────────────────────────────────────────────────────────
   const actions = document.createElement('div');
   actions.className = 'toolbar__actions';
+
+  const nav = document.createElement('div');
+  nav.className = 'toolbar__nav';
+  nav.setAttribute('aria-label', 'Navegação rápida');
 
   const settingsBtn = document.createElement('button');
   settingsBtn.className = 'toolbar__icon-btn';
@@ -191,10 +240,11 @@ export function createToolbar(): HTMLElement {
     emit('view-changed', { view: 'editor', scriptId: null });
   });
 
-  actions.appendChild(notepadBtn);
-  actions.appendChild(linksBtn);
-  actions.appendChild(statsBtn);
-  actions.appendChild(settingsBtn);
+  nav.appendChild(notepadBtn);
+  nav.appendChild(linksBtn);
+  nav.appendChild(statsBtn);
+  nav.appendChild(settingsBtn);
+  actions.appendChild(nav);
   actions.appendChild(createBtn);
   toolbar.appendChild(actions);
 

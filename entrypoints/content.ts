@@ -157,22 +157,59 @@ export default defineContentScript({
         themeId
       );
 
-      const getPrimary = (tid: string) => {
-        const map: Record<string, string> = {
-          light: 'hsl(230, 65%, 55%)',
-          dark: 'hsl(230, 70%, 65%)',
-          'purple-gradient': 'linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%))',
-          'pink-gradient': 'linear-gradient(135deg, hsl(320, 80%, 60%), hsl(350, 80%, 60%))',
-          'ocean-gradient': 'linear-gradient(135deg, hsl(190, 85%, 50%), hsl(220, 85%, 55%))',
-          'emerald-gradient': 'linear-gradient(135deg, hsl(145, 80%, 42%), hsl(175, 80%, 38%))',
-          'sunset-gradient': 'linear-gradient(135deg, hsl(35, 95%, 55%), hsl(10, 90%, 60%))',
-          'crimson-gradient': 'linear-gradient(135deg, hsl(350, 85%, 55%), hsl(15, 85%, 50%))'
-        };
-        return map[tid] || map['light'];
+      const popupThemes: Record<string, { primary: string; background: string; glow: string }> = {
+        light: {
+          primary: 'linear-gradient(135deg, hsl(225, 75%, 58%), hsl(265, 72%, 61%))',
+          background:
+            'linear-gradient(145deg, hsla(220, 62%, 94%, .97), hsla(258, 52%, 90%, .97) 55%, hsla(188, 48%, 92%, .97))',
+          glow: 'hsla(245, 70%, 55%, .28)'
+        },
+        dark: {
+          primary: 'linear-gradient(135deg, hsl(225, 78%, 64%), hsl(265, 70%, 60%))',
+          background:
+            'radial-gradient(circle at 12% 0%, hsla(230, 38%, 24%, .98), hsla(220, 21%, 11%, .98) 55%, hsla(260, 24%, 9%, .98))',
+          glow: 'hsla(235, 75%, 62%, .3)'
+        },
+        'purple-gradient': {
+          primary: 'linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%))',
+          background:
+            'radial-gradient(circle at 12% 0%, hsla(278, 46%, 27%, .98), hsla(258, 28%, 12%, .98) 54%, hsla(305, 25%, 9%, .98))',
+          glow: 'hsla(280, 78%, 60%, .34)'
+        },
+        'pink-gradient': {
+          primary: 'linear-gradient(135deg, hsl(320, 80%, 56%), hsl(350, 80%, 58%))',
+          background:
+            'linear-gradient(145deg, hsla(322, 76%, 89%, .97), hsla(350, 78%, 83%, .97) 54%, hsla(300, 58%, 88%, .97))',
+          glow: 'hsla(335, 80%, 56%, .3)'
+        },
+        'ocean-gradient': {
+          primary: 'linear-gradient(135deg, hsl(190, 85%, 48%), hsl(220, 85%, 54%))',
+          background:
+            'radial-gradient(circle at 12% 0%, hsla(186, 62%, 24%, .98), hsla(210, 35%, 11%, .98) 55%, hsla(230, 38%, 9%, .98))',
+          glow: 'hsla(198, 85%, 50%, .32)'
+        },
+        'emerald-gradient': {
+          primary: 'linear-gradient(135deg, hsl(145, 80%, 38%), hsl(175, 80%, 34%))',
+          background:
+            'linear-gradient(145deg, hsla(145, 58%, 86%, .97), hsla(174, 62%, 79%, .97) 54%, hsla(128, 48%, 86%, .97))',
+          glow: 'hsla(158, 75%, 38%, .28)'
+        },
+        'sunset-gradient': {
+          primary: 'linear-gradient(135deg, hsl(35, 95%, 51%), hsl(10, 90%, 57%))',
+          background:
+            'linear-gradient(145deg, hsla(42, 92%, 85%, .97), hsla(20, 88%, 79%, .97) 55%, hsla(350, 70%, 85%, .97))',
+          glow: 'hsla(22, 90%, 53%, .3)'
+        },
+        'crimson-gradient': {
+          primary: 'linear-gradient(135deg, hsl(350, 85%, 54%), hsl(15, 85%, 48%))',
+          background:
+            'radial-gradient(circle at 14% 0%, hsla(350, 55%, 28%, .98), hsla(350, 27%, 12%, .98) 52%, hsla(15, 30%, 9%, .98))',
+          glow: 'hsla(350, 82%, 52%, .34)'
+        }
       };
-
-      const primaryColor = getPrimary(themeId);
-      const containerBg = isLight ? 'rgba(250, 250, 250, 0.85)' : 'rgba(30, 30, 30, 0.85)';
+      const popupTheme = popupThemes[themeId] ?? popupThemes['light']!;
+      const primaryColor = popupTheme.primary;
+      const containerBg = popupTheme.background;
       const textColor = isLight ? '#1a1a1a' : '#fff';
       const textSecondary = isLight ? '#666' : '#888';
       const borderColor = isLight ? 'rgba(0, 0, 0, 0.1)' : 'rgba(255, 255, 255, 0.1)';
@@ -237,7 +274,7 @@ export default defineContentScript({
         -webkit-backdrop-filter: blur(12px);
         border: 1px solid ${borderColor};
         border-radius: 10px;
-        box-shadow: 0 8px 32px rgba(0,0,0,0.4);
+        box-shadow: 0 12px 36px rgba(0,0,0,0.38), 0 0 0 1px ${popupTheme.glow}, 0 0 28px ${popupTheme.glow};
         width: 250px;
         max-height: 300px;
         overflow-y: auto;

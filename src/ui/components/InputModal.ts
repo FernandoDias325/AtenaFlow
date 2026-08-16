@@ -76,6 +76,7 @@ export interface InputModalOptions {
   message: string;
   placeholder?: string;
   confirmLabel?: string;
+  initialValue?: string;
 }
 
 export function showInputModal(options: InputModalOptions): Promise<string | null> {
@@ -105,6 +106,7 @@ export function showInputModal(options: InputModalOptions): Promise<string | nul
     input.className = 'input-modal__field';
     input.type = 'text';
     input.placeholder = options.placeholder ?? '';
+    input.value = options.initialValue ?? '';
     input.setAttribute('aria-label', options.title);
 
     const actions = document.createElement('div');

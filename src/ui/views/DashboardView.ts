@@ -8,7 +8,7 @@ const STYLES = `
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    background-color: var(--color-bg);
+    background: var(--bg-app, var(--color-bg));
   }
 
   .dashboard-view__header {
@@ -18,6 +18,8 @@ const STYLES = `
     padding: var(--space-3) var(--space-5);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
+    background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+    backdrop-filter: blur(14px);
   }
 
   .dashboard-view__back-btn {
@@ -44,27 +46,48 @@ const STYLES = `
 
   .dashboard-view__content {
     flex: 1;
-    padding: var(--space-5);
+    padding: var(--space-4);
     overflow-y: auto;
     display: flex;
     flex-direction: column;
-    gap: var(--space-5);
+    gap: var(--space-4);
   }
 
   .stats-grid {
     display: grid;
     grid-template-columns: repeat(2, 1fr);
-    gap: var(--space-4);
+    gap: 10px;
   }
 
   .stat-card {
-    background-color: var(--color-bg-secondary);
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    padding: var(--space-4);
+    min-height: 88px;
+    padding: var(--space-3);
     display: flex;
     flex-direction: column;
     gap: var(--space-1);
+    box-sizing: border-box;
+    box-shadow: 0 4px 14px color-mix(in srgb, var(--color-primary) 6%, transparent);
+  }
+
+  .stat-card__header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--space-2);
+  }
+
+  .stat-card__icon {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: 7px;
+    color: var(--color-primary);
+    background: var(--color-primary-soft);
   }
 
   .stat-card__title {
@@ -76,7 +99,7 @@ const STYLES = `
   }
 
   .stat-card__value {
-    font-size: 28px;
+    font-size: 24px;
     font-weight: var(--font-weight-bold);
     color: var(--color-primary);
   }
@@ -86,18 +109,32 @@ const STYLES = `
     color: var(--color-text-tertiary);
   }
 
+  .stat-card--wide {
+    grid-column: 1 / -1;
+    min-height: auto;
+    display: grid;
+    grid-template-columns: 1fr auto;
+    align-items: center;
+    gap: 4px var(--space-3);
+  }
+
+  .stat-card--wide .stat-card__value { grid-column: 2; grid-row: 1 / 3; font-size: 22px; white-space: nowrap; }
+
   .top-scripts {
     display: flex;
     flex-direction: column;
-    gap: var(--space-3);
+    gap: var(--space-2);
+    padding: var(--space-3);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
   }
 
   .top-scripts__title {
     font-size: var(--font-size-md);
     font-weight: var(--font-weight-semibold);
     color: var(--color-text);
-    border-bottom: 1px solid var(--color-border);
-    padding-bottom: var(--space-2);
+    padding-bottom: var(--space-1);
   }
 
   .top-scripts__list {
@@ -110,16 +147,24 @@ const STYLES = `
     display: flex;
     justify-content: space-between;
     align-items: center;
-    padding: var(--space-3);
-    background-color: var(--color-bg-secondary);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    padding: 7px 8px;
+    border-radius: var(--radius-sm);
+    background: var(--color-bg-secondary);
   }
+
+  .top-script-item__identity { display: flex; align-items: center; gap: 7px; min-width: 0; }
+  .top-script-item__position { display: inline-flex; align-items: center; justify-content: center; width: 20px; height: 20px; flex-shrink: 0; border-radius: 6px; color: var(--color-primary); background: var(--color-primary-soft); font-size: 10px; font-weight: var(--font-weight-semibold); }
+  .top-script-item__copy { min-width: 0; }
+  .top-script-item__kind { display: block; margin-top: 1px; color: var(--color-text-tertiary); font-size: 9px; }
 
   .top-script-item__name {
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
+    display: block;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
 
   .top-script-item__usage {
@@ -180,6 +225,7 @@ export async function createDashboardView(): Promise<HTMLElement> {
 
   const links = await LinksRepo.getAllLinks();
   const totalLinks = links.length;
+  const totalLinkAccesses = links.reduce((sum, link) => sum + (link.usageCount ?? 0), 0);
 
   // Estimate: 15 seconds saved per usage
   const totalSecondsSaved = totalUsages * 15;
@@ -195,74 +241,102 @@ export async function createDashboardView(): Promise<HTMLElement> {
   const statsGrid = document.createElement('div');
   statsGrid.className = 'stats-grid';
 
-  const card1 = document.createElement('div');
-  card1.className = 'stat-card';
-  card1.innerHTML = `
-    <div class="stat-card__title">Total de Scripts</div>
-    <div class="stat-card__value">${totalScripts}</div>
-    <div class="stat-card__desc">Scripts cadastrados</div>
-  `;
-  statsGrid.appendChild(card1);
+  const createStatCard = (
+    label: string,
+    value: string | number,
+    description: string,
+    icon: string,
+    wide = false
+  ) => {
+    const card = document.createElement('div');
+    card.className = `stat-card${wide ? ' stat-card--wide' : ''}`;
+    const headerEl = document.createElement('div');
+    headerEl.className = 'stat-card__header';
+    const labelEl = document.createElement('span');
+    labelEl.className = 'stat-card__title';
+    labelEl.textContent = label;
+    const iconEl = document.createElement('span');
+    iconEl.className = 'stat-card__icon';
+    iconEl.innerHTML = icon;
+    headerEl.append(labelEl, iconEl);
+    const valueEl = document.createElement('div');
+    valueEl.className = 'stat-card__value';
+    valueEl.textContent = String(value);
+    const descEl = document.createElement('div');
+    descEl.className = 'stat-card__desc';
+    descEl.textContent = description;
+    card.append(headerEl, valueEl, descEl);
+    return card;
+  };
 
-  const card2 = document.createElement('div');
-  card2.className = 'stat-card';
-  card2.innerHTML = `
-    <div class="stat-card__title">Usos Totais</div>
-    <div class="stat-card__value">${totalUsages}</div>
-    <div class="stat-card__desc">Vezes que os scripts foram colados</div>
-  `;
-  statsGrid.appendChild(card2);
+  const scriptIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 4h16v16H4z"/><path d="M8 9h8M8 13h6"/></svg>`;
+  const usageIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="m13 2-9 12h8l-1 8 9-12h-8z"/></svg>`;
+  const linkIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M10 13a5 5 0 0 0 7.5.5l3-3a5 5 0 0 0-7-7l-2 2"/><path d="M14 11a5 5 0 0 0-7.5-.5l-3 3a5 5 0 0 0 7 7l2-2"/></svg>`;
+  const openIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M15 3h6v6M10 14 21 3"/><path d="M18 13v6H5V6h6"/></svg>`;
+  const clockIcon = `<svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><circle cx="12" cy="12" r="9"/><path d="M12 7v5l3 2"/></svg>`;
 
-  const cardLinks = document.createElement('div');
-  cardLinks.className = 'stat-card';
-  cardLinks.innerHTML = `
-    <div class="stat-card__title">Links Úteis</div>
-    <div class="stat-card__value">${totalLinks}</div>
-    <div class="stat-card__desc">Links salvos na aba</div>
-  `;
-  statsGrid.appendChild(cardLinks);
-
-  const card3 = document.createElement('div');
-  card3.className = 'stat-card';
-  card3.style.gridColumn = '1 / -1';
-  card3.innerHTML = `
-    <div class="stat-card__title">Tempo Economizado</div>
-    <div class="stat-card__value">${timeSavedText}</div>
-    <div class="stat-card__desc">Baseado na média de 15s por digitação manual</div>
-  `;
-  statsGrid.appendChild(card3);
+  statsGrid.append(
+    createStatCard('Scripts', totalScripts, 'cadastrados', scriptIcon),
+    createStatCard('Usos de scripts', totalUsages, 'inserções realizadas', usageIcon),
+    createStatCard('Links úteis', totalLinks, 'links salvos', linkIcon),
+    createStatCard('Links abertos', totalLinkAccesses, 'acessos realizados', openIcon),
+    createStatCard('Tempo economizado', timeSavedText, 'Estimativa de 15s por uso', clockIcon, true)
+  );
 
   content.appendChild(statsGrid);
 
-  // Top 5 Scripts
-  const topScripts = [...scripts]
-    .sort((a, b) => (b.usageCount || 0) - (a.usageCount || 0))
+  const ranking = [
+    ...scripts.map((script) => ({
+      name: script.title,
+      count: script.usageCount ?? 0,
+      kind: 'Script'
+    })),
+    ...links.map((link) => ({
+      name: link.title,
+      count: link.usageCount ?? 0,
+      kind: 'Link'
+    }))
+  ]
+    .filter((item) => item.count > 0)
+    .sort((a, b) => b.count - a.count)
     .slice(0, 5);
 
-  if (topScripts.length > 0 && (topScripts[0]?.usageCount || 0) > 0) {
+  if (ranking.length > 0) {
     const topList = document.createElement('div');
     topList.className = 'top-scripts';
 
     const topTitle = document.createElement('div');
     topTitle.className = 'top-scripts__title';
-    topTitle.textContent = 'Top 5 Scripts Mais Usados';
+    topTitle.textContent = 'Mais utilizados';
     topList.appendChild(topTitle);
 
     const list = document.createElement('div');
     list.className = 'top-scripts__list';
 
-    for (const s of topScripts) {
-      if (!s.usageCount || s.usageCount === 0) {
-        continue;
-      }
+    ranking.forEach((rankedItem, index) => {
       const item = document.createElement('div');
       item.className = 'top-script-item';
-      item.innerHTML = `
-        <span class="top-script-item__name">${s.title}</span>
-        <span class="top-script-item__usage">${s.usageCount} usos</span>
-      `;
+      const identity = document.createElement('div');
+      identity.className = 'top-script-item__identity';
+      const position = document.createElement('span');
+      position.className = 'top-script-item__position';
+      position.textContent = String(index + 1);
+      const copy = document.createElement('div');
+      copy.className = 'top-script-item__copy';
+      const name = document.createElement('span');
+      name.className = 'top-script-item__name';
+      name.textContent = rankedItem.name;
+      const kind = document.createElement('span');
+      kind.className = 'top-script-item__kind';
+      kind.textContent = rankedItem.kind;
+      copy.append(name, kind);
+      identity.append(position, copy);
+      const usage = document.createElement('span');
+      usage.className = 'top-script-item__usage';
+      usage.textContent = `${rankedItem.count} ${rankedItem.count === 1 ? 'uso' : 'usos'}`;
+      item.append(identity, usage);
       list.appendChild(item);
-    }
+    });
 
     topList.appendChild(list);
     content.appendChild(topList);

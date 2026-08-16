@@ -33,6 +33,40 @@ function now(): number {
   return Date.now();
 }
 
+/** Padroniza espaços e mantém a primeira letra da categoria em maiúscula. */
+export function normalizeCategoryName(name: string): string {
+  const normalized = name.trim().replace(/\s+/g, ' ');
+  if (!normalized) {
+    return '';
+  }
+  return normalized.charAt(0).toLocaleUpperCase('pt-BR') + normalized.slice(1);
+}
+
+function categoryNameKey(name: string): string {
+  return normalizeCategoryName(name)
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR');
+}
+
+export class CategoryNameConflictError extends Error {
+  constructor() {
+    super('Já existe uma categoria com esse nome.');
+    this.name = 'CategoryNameConflictError';
+  }
+}
+
+function ensureUniqueName(categories: Category[], name: string, ignoredCategoryId?: string): void {
+  const nameKey = categoryNameKey(name);
+  if (
+    categories.some(
+      (category) => category.id !== ignoredCategoryId && categoryNameKey(category.name) === nameKey
+    )
+  ) {
+    throw new CategoryNameConflictError();
+  }
+}
+
 // ─── Repositório de Categorias ───────────────────────────────────────────────
 
 /**
@@ -65,11 +99,13 @@ export async function createCategory(
   data: Pick<Category, 'name' | 'color'> & Partial<Omit<Category, 'name' | 'color'>>
 ): Promise<Category> {
   const db = await getDB();
+  const name = normalizeCategoryName(data.name);
+  const allCategories = await db.getAllFromIndex('categories', 'by-order');
+  ensureUniqueName(allCategories, name);
 
   // Determina a próxima posição de ordenação caso não fornecida
   let order = data.order;
   if (order === undefined) {
-    const allCategories = await db.getAllFromIndex('categories', 'by-order');
     if (allCategories.length > 0) {
       const lastCategory = allCategories[allCategories.length - 1];
       order = (lastCategory?.order ?? 0) + 1;
@@ -80,7 +116,7 @@ export async function createCategory(
 
   const category: Category = {
     id: data.id ?? generateId(),
-    name: data.name,
+    name,
     color: data.color,
     order,
     createdAt: data.createdAt ?? now()
@@ -108,9 +144,16 @@ export async function updateCategory(
     return undefined;
   }
 
+  const normalizedChanges = { ...changes };
+  if (changes.name !== undefined) {
+    normalizedChanges.name = normalizeCategoryName(changes.name);
+    const allCategories = await db.getAllFromIndex('categories', 'by-order');
+    ensureUniqueName(allCategories, normalizedChanges.name, id);
+  }
+
   const updated: Category = {
     ...existing,
-    ...changes,
+    ...normalizedChanges,
     id: existing.id,
     createdAt: existing.createdAt
   };

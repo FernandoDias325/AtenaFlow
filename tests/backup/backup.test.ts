@@ -2,7 +2,7 @@ import { describe, it, expect, beforeEach, afterEach } from 'vitest';
 import 'fake-indexeddb/auto';
 import { getDB, closeDB } from '../../src/core/db/schema';
 import { generateExportData, importBackup } from '../../src/core/backup/backup.service';
-import type { Category, Script } from '../../src/core/models/types';
+import type { Category, Link, Script } from '../../src/core/models/types';
 
 describe('Backup Service', () => {
   beforeEach(async () => {
@@ -45,6 +45,23 @@ describe('Backup Service', () => {
       expect(data.scripts.length).toBe(1);
       expect(data.scripts[0]?.id).toBe('s1');
       expect(typeof data.timestamp).toBe('number');
+    });
+
+    it('deve exportar links ativos antigos mesmo sem deletedAt', async () => {
+      const db = await getDB();
+      const legacyLink = {
+        id: 'l1',
+        title: 'Portal',
+        url: 'https://example.com/',
+        order: 0,
+        createdAt: 1
+      } as Link;
+      await db.put('links', legacyLink);
+
+      const data = await generateExportData();
+
+      expect(data.links).toHaveLength(1);
+      expect(data.links?.[0]?.id).toBe('l1');
     });
   });
 
@@ -91,6 +108,27 @@ describe('Backup Service', () => {
       expect(cats[0]?.name).toBe('Cat 1');
       expect(scripts.length).toBe(1);
       expect(scripts[0]?.title).toBe('Script Importado');
+    });
+
+    it('deve restaurar links exportados durante a importação', async () => {
+      const sourceDb = await getDB();
+      await sourceDb.put('links', {
+        id: 'l1',
+        title: 'Portal seguro',
+        url: 'https://example.com/',
+        order: 0,
+        createdAt: 1,
+        deletedAt: null
+      });
+      const exported = await generateExportData();
+
+      await sourceDb.clear('links');
+      await importBackup(JSON.stringify(exported));
+
+      const importedLinks = await sourceDb.getAll('links');
+      expect(importedLinks).toHaveLength(1);
+      expect(importedLinks[0]?.title).toBe('Portal seguro');
+      expect(importedLinks[0]?.deletedAt).toBeNull();
     });
 
     it('deve rejeitar registros malformados sem gravar parcialmente', async () => {

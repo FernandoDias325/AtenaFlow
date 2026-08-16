@@ -8,6 +8,7 @@
 
 import { emit } from '../../store/app-store';
 import * as CategoriesRepo from '../../core/db/categories.repository';
+import * as ScriptsRepo from '../../core/db/scripts.repository';
 import type { Category } from '../../core/models/types';
 import { showConfirmModal } from '../components/ConfirmModal';
 
@@ -19,16 +20,18 @@ const STYLES = `
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    background-color: var(--color-bg);
+    background: var(--bg-app, var(--color-bg));
   }
 
   .cat-view__header {
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-3) var(--space-5);
+    padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
+    background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+    backdrop-filter: blur(14px);
   }
 
   .cat-view__back-btn {
@@ -53,6 +56,9 @@ const STYLES = `
     color: var(--color-text);
   }
 
+  .cat-view__heading { display: flex; flex-direction: column; gap: 2px; }
+  .cat-view__subtitle { font-size: var(--font-size-xs); color: var(--color-text-secondary); }
+
   .cat-view__content {
     flex: 1;
     display: flex;
@@ -65,7 +71,7 @@ const STYLES = `
     gap: var(--space-2);
     padding: var(--space-4) var(--space-5);
     border-bottom: 1px solid var(--color-border);
-    background-color: var(--color-bg-secondary);
+    background: color-mix(in srgb, var(--color-bg) 74%, transparent);
     flex-shrink: 0;
   }
 
@@ -82,6 +88,7 @@ const STYLES = `
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     transition: background-color var(--transition-fast);
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--color-primary) 24%, transparent);
   }
 
   .cat-view__add-btn:hover {
@@ -96,20 +103,33 @@ const STYLES = `
   .cat-view__list {
     flex: 1;
     overflow-y: auto;
-    padding: var(--space-2) 0;
+    padding: var(--space-3) var(--space-4);
   }
 
   .cat-item {
     display: flex;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-5);
-    border-bottom: 1px solid var(--color-border);
+    min-height: 44px;
+    padding: var(--space-2) var(--space-3);
+    margin-bottom: var(--space-2);
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: color-mix(in srgb, var(--color-bg) 90%, transparent);
     transition: background-color var(--transition-fast);
   }
 
   .cat-item:hover {
     background-color: var(--color-bg-hover);
+    border-color: color-mix(in srgb, var(--color-primary) 35%, var(--color-border));
+  }
+
+  .cat-item__dot {
+    width: 8px;
+    height: 8px;
+    flex-shrink: 0;
+    border-radius: 50%;
+    box-shadow: 0 0 0 3px color-mix(in srgb, currentColor 14%, transparent);
   }
 
   .cat-item__name {
@@ -117,6 +137,20 @@ const STYLES = `
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
     color: var(--color-text);
+  }
+
+  .cat-item__count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: 58px;
+    padding: 3px 8px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 10px;
+    font-weight: var(--font-weight-medium);
+    white-space: nowrap;
   }
 
   .cat-item__actions {
@@ -197,10 +231,17 @@ export async function createCategoriesView(): Promise<HTMLElement> {
   });
   header.appendChild(backBtn);
 
+  const heading = document.createElement('div');
+  heading.className = 'cat-view__heading';
   const title = document.createElement('span');
   title.className = 'cat-view__title';
   title.textContent = 'Gerenciar Categorias';
-  header.appendChild(title);
+  heading.appendChild(title);
+  const subtitle = document.createElement('span');
+  subtitle.className = 'cat-view__subtitle';
+  subtitle.textContent = 'Organize e reordene seus scripts';
+  heading.appendChild(subtitle);
+  header.appendChild(heading);
 
   container.appendChild(header);
 
@@ -227,7 +268,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
   });
 
   addBtn.addEventListener('click', async () => {
-    const name = inputEl.value.trim();
+    const name = CategoriesRepo.normalizeCategoryName(inputEl.value);
     if (!name) {
       return;
     }
@@ -241,7 +282,13 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       emit('categories-changed', undefined);
     } catch (e) {
       console.error(e);
-      emit('toast', { message: 'Erro ao criar', type: 'error' });
+      emit('toast', {
+        message:
+          e instanceof CategoriesRepo.CategoryNameConflictError
+            ? 'Essa categoria já existe'
+            : 'Erro ao criar',
+        type: 'error'
+      });
     }
   });
 
@@ -268,7 +315,20 @@ export async function createCategoriesView(): Promise<HTMLElement> {
 
   async function renderList() {
     listContainer.innerHTML = '';
-    categories = await CategoriesRepo.getAllCategories();
+    const [loadedCategories, activeScripts] = await Promise.all([
+      CategoriesRepo.getAllCategories(),
+      ScriptsRepo.getAllActiveScripts()
+    ]);
+    categories = loadedCategories;
+    const scriptCountByCategory = new Map<string, number>();
+    activeScripts.forEach((script) => {
+      if (script.categoryId) {
+        scriptCountByCategory.set(
+          script.categoryId,
+          (scriptCountByCategory.get(script.categoryId) ?? 0) + 1
+        );
+      }
+    });
 
     if (categories.length === 0) {
       const empty = document.createElement('div');
@@ -314,10 +374,21 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       const itemEl = document.createElement('div');
       itemEl.className = 'cat-item';
 
+      const dotEl = document.createElement('span');
+      dotEl.className = 'cat-item__dot';
+      dotEl.style.backgroundColor = cat.color;
+      dotEl.style.color = cat.color;
+
       // Modo Visualização
       const nameEl = document.createElement('span');
       nameEl.className = 'cat-item__name';
-      nameEl.textContent = cat.name;
+      nameEl.textContent = CategoriesRepo.normalizeCategoryName(cat.name);
+
+      const count = scriptCountByCategory.get(cat.id) ?? 0;
+      const countEl = document.createElement('span');
+      countEl.className = 'cat-item__count';
+      countEl.textContent = `${count} ${count === 1 ? 'script' : 'scripts'}`;
+      countEl.title = `${count} ${count === 1 ? 'script vinculado' : 'scripts vinculados'}`;
 
       // Ações
       const actionsEl = document.createElement('div');
@@ -381,7 +452,9 @@ export async function createCategoriesView(): Promise<HTMLElement> {
           itemEl.appendChild(actionsEl);
           editInput.focus();
         } else {
+          itemEl.appendChild(dotEl);
           itemEl.appendChild(nameEl);
+          itemEl.appendChild(countEl);
           actionsEl.appendChild(upBtn);
           actionsEl.appendChild(downBtn);
           actionsEl.appendChild(editBtn);
@@ -394,7 +467,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       cancelBtn.addEventListener('click', toggleEdit);
 
       saveBtn.addEventListener('click', async () => {
-        const newName = editInput.value.trim();
+        const newName = CategoriesRepo.normalizeCategoryName(editInput.value);
         if (!newName || newName === cat.name) {
           toggleEdit();
           return;
@@ -406,7 +479,13 @@ export async function createCategoriesView(): Promise<HTMLElement> {
           emit('categories-changed', undefined);
         } catch (e) {
           console.error(e);
-          emit('toast', { message: 'Erro ao atualizar', type: 'error' });
+          emit('toast', {
+            message:
+              e instanceof CategoriesRepo.CategoryNameConflictError
+                ? 'Essa categoria já existe'
+                : 'Erro ao atualizar',
+            type: 'error'
+          });
         }
       });
 
@@ -435,7 +514,9 @@ export async function createCategoriesView(): Promise<HTMLElement> {
         }
       });
 
+      itemEl.appendChild(dotEl);
       itemEl.appendChild(nameEl);
+      itemEl.appendChild(countEl);
       itemEl.appendChild(actionsEl);
       listContainer.appendChild(itemEl);
     });

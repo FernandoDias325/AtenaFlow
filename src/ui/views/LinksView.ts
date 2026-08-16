@@ -11,7 +11,7 @@ const STYLES = `
     flex-direction: column;
     height: 100%;
     overflow: hidden;
-    background-color: var(--color-bg);
+    background: var(--bg-app, var(--color-bg));
   }
 
   .links-view__header {
@@ -21,6 +21,8 @@ const STYLES = `
     padding: var(--space-3) var(--space-5);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
+    background: color-mix(in srgb, var(--color-bg) 84%, transparent);
+    backdrop-filter: blur(14px);
   }
 
   .links-view__back-btn {
@@ -58,40 +60,46 @@ const STYLES = `
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     border: none;
-    transition: background-color var(--transition-fast);
+    box-shadow: 0 5px 14px color-mix(in srgb, var(--color-primary) 24%, transparent);
+    transition: all var(--transition-fast);
   }
 
   .links-view__add-btn:hover {
     background: var(--bg-primary-hover);
+    transform: translateY(-1px);
   }
 
   .links-view__content {
     flex: 1;
-    padding: var(--space-4) var(--space-5);
+    padding: var(--space-3) var(--space-4);
     overflow-y: auto;
+    background: transparent;
   }
 
   .link-item {
     display: flex;
     align-items: center;
     justify-content: space-between;
-    padding: var(--space-3);
-    background-color: var(--color-bg-secondary);
+    padding: 9px 10px;
+    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
     border: 1px solid var(--color-border);
     border-radius: var(--radius-md);
-    margin-bottom: var(--space-3);
+    margin-bottom: var(--space-2);
     transition: all var(--transition-fast);
     cursor: pointer;
   }
 
   .link-item:hover {
-    border-color: var(--color-primary-soft);
+    border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
+    transform: translateY(-1px);
+    box-shadow: 0 7px 18px color-mix(in srgb, var(--color-primary) 10%, transparent);
   }
 
   .link-item__info {
-    display: flex;
-    flex-direction: column;
-    gap: 4px;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) auto;
+    align-items: center;
+    gap: 3px 8px;
     flex: 1;
     overflow: hidden;
   }
@@ -103,6 +111,7 @@ const STYLES = `
     white-space: nowrap;
     overflow: hidden;
     text-overflow: ellipsis;
+    grid-column: 1 / -1;
   }
 
   .link-item__url {
@@ -113,9 +122,21 @@ const STYLES = `
     text-overflow: ellipsis;
   }
 
+  .link-item__usage {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    border-radius: var(--radius-full);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    font-size: 9px;
+    font-weight: var(--font-weight-medium);
+  }
+
   .link-item__actions {
     display: flex;
-    gap: var(--space-2);
+    gap: 2px;
+    margin-left: var(--space-2);
   }
 
   .link-btn {
@@ -123,7 +144,9 @@ const STYLES = `
     border: none;
     color: var(--color-text-secondary);
     cursor: pointer;
-    padding: 4px;
+    width: 28px;
+    height: 28px;
+    padding: 0;
     border-radius: var(--radius-sm);
     display: flex;
     align-items: center;
@@ -137,6 +160,7 @@ const STYLES = `
   
   .link-btn--danger:hover {
     color: var(--color-error);
+    background: var(--color-error-soft);
   }
 
   .link-modal {
@@ -306,7 +330,7 @@ export async function createLinksView(): Promise<HTMLElement> {
 
       const titleEl = document.createElement('div');
       titleEl.className = 'link-item__title';
-      titleEl.textContent = link.title;
+      titleEl.textContent = LinksRepo.normalizeLinkTitle(link.title);
       info.appendChild(titleEl);
 
       const urlEl = document.createElement('div');
@@ -314,12 +338,26 @@ export async function createLinksView(): Promise<HTMLElement> {
       urlEl.textContent = link.url;
       info.appendChild(urlEl);
 
+      const usageEl = document.createElement('span');
+      usageEl.className = 'link-item__usage';
+      const updateUsageLabel = (count: number) => {
+        usageEl.textContent = `${count} ${count === 1 ? 'acesso' : 'acessos'}`;
+      };
+      updateUsageLabel(link.usageCount ?? 0);
+      info.appendChild(usageEl);
+
       item.appendChild(info);
 
       item.addEventListener('click', () => {
         const finalUrl = normalizeHttpUrl(link.url);
         if (finalUrl) {
           window.open(finalUrl, '_blank', 'noopener,noreferrer');
+          void LinksRepo.incrementUsageCount(link.id).then((count) => {
+            if (count !== undefined) {
+              link.usageCount = count;
+              updateUsageLabel(count);
+            }
+          });
         }
       });
 
@@ -437,7 +475,7 @@ export async function createLinksView(): Promise<HTMLElement> {
     saveBtn.className = 'link-modal__btn link-modal__btn--save';
     saveBtn.textContent = 'Salvar';
     saveBtn.onclick = async () => {
-      const title = titleInput.value.trim();
+      const title = LinksRepo.normalizeLinkTitle(titleInput.value);
       const rawUrl = urlInput.value.trim();
       if (!title || !rawUrl) {
         emit('toast', { message: 'Preencha título e URL', type: 'error' });

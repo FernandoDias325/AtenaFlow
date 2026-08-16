@@ -108,6 +108,8 @@ export interface Link {
   order: number;
   /** Timestamp de criação (epoch ms). */
   createdAt: number;
+  /** Quantidade de vezes que o link foi aberto pela extensão. */
+  usageCount?: number;
   /** Timestamp de exclusão lógica (epoch ms) ou null se ativo. */
   deletedAt?: number | null;
 }

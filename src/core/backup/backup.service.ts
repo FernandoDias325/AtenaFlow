@@ -102,6 +102,7 @@ function normalizeLink(value: unknown): Link {
     url,
     order: finiteNumber(item['order'], 0),
     createdAt: finiteNumber(item['createdAt'], Date.now()),
+    usageCount: finiteNumber(item['usageCount'], 0),
     deletedAt: null
   };
 }
@@ -118,7 +119,11 @@ export async function generateExportData(): Promise<ExportData> {
   const activeScripts = allScripts.filter((s) => s.deletedAt === null);
 
   const allLinks = await db.getAll('links');
-  const activeLinks = allLinks.filter((l) => l.deletedAt === null);
+  // Links criados em versões anteriores podem não possuir `deletedAt`.
+  // Ausente e null representam um link ativo; somente timestamps indicam exclusão.
+  const activeLinks = allLinks.filter(
+    (link) => link.deletedAt === null || link.deletedAt === undefined
+  );
 
   return {
     version: 2,

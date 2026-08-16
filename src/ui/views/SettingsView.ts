@@ -156,6 +156,14 @@ const STYLES = `
     box-shadow: inset 0 0 0 1px var(--color-primary);
   }
 
+  .settings-theme-current {
+    margin-bottom: var(--space-2);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+  }
+
+  .settings-theme-current strong { color: var(--color-text); }
+
   .settings-sites-input {
     width: 100%;
     min-height: 68px;
@@ -288,80 +296,99 @@ export async function createSettingsView(): Promise<HTMLElement> {
   themeSection.appendChild(themeDesc);
 
   const themeGrid = document.createElement('div');
-  themeGrid.style.display = 'flex';
-  themeGrid.style.gap = 'var(--space-3)';
-  themeGrid.style.flexWrap = 'wrap';
+  themeGrid.style.display = 'grid';
+  themeGrid.style.gridTemplateColumns = 'repeat(8, minmax(28px, 1fr))';
+  themeGrid.style.gap = '6px';
 
   const currentTheme = localStorage.getItem('atenaflow-theme') || 'light';
 
   const themes = [
-    { id: 'light', name: 'Claro', color: 'hsl(230, 65%, 55%)', bg: 'hsl(40, 15%, 98%)' },
-    { id: 'dark', name: 'Escuro', color: 'hsl(230, 70%, 65%)', bg: 'hsl(220, 14%, 12%)' },
+    {
+      id: 'light',
+      name: 'Claro',
+      color: 'linear-gradient(135deg, hsl(225, 75%, 62%), hsl(265, 72%, 64%))',
+      bg: 'linear-gradient(135deg, hsl(220, 62%, 88%), hsl(265, 55%, 84%))'
+    },
+    {
+      id: 'dark',
+      name: 'Escuro',
+      color: 'linear-gradient(135deg, hsl(225, 78%, 68%), hsl(265, 70%, 62%))',
+      bg: 'linear-gradient(135deg, hsl(225, 28%, 17%), hsl(260, 34%, 12%))'
+    },
     {
       id: 'purple-gradient',
       name: 'Roxo Místico',
       color: 'linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%))',
-      bg: 'hsl(260, 15%, 11%)'
+      bg: 'linear-gradient(135deg, hsl(270, 42%, 24%), hsl(300, 30%, 12%))'
     },
     {
       id: 'pink-gradient',
       name: 'Rosa Vibrante',
       color: 'linear-gradient(135deg, hsl(320, 80%, 60%), hsl(350, 80%, 60%))',
-      bg: 'hsl(340, 45%, 96%)'
+      bg: 'linear-gradient(135deg, hsl(320, 78%, 78%), hsl(350, 82%, 72%))'
     },
     {
       id: 'ocean-gradient',
       name: 'Azul Oceano',
       color: 'linear-gradient(135deg, hsl(190, 85%, 50%), hsl(220, 85%, 55%))',
-      bg: 'hsl(210, 20%, 10%)'
+      bg: 'linear-gradient(135deg, hsl(185, 55%, 22%), hsl(225, 48%, 13%))'
     },
     {
       id: 'emerald-gradient',
       name: 'Verde Esmeralda',
       color: 'linear-gradient(135deg, hsl(145, 80%, 42%), hsl(175, 80%, 38%))',
-      bg: 'hsl(150, 30%, 96%)'
+      bg: 'linear-gradient(135deg, hsl(145, 62%, 70%), hsl(175, 68%, 58%))'
     },
     {
       id: 'sunset-gradient',
       name: 'Âmbar Solar',
       color: 'linear-gradient(135deg, hsl(35, 95%, 55%), hsl(10, 90%, 60%))',
-      bg: 'hsl(30, 40%, 96%)'
+      bg: 'linear-gradient(135deg, hsl(42, 92%, 70%), hsl(15, 88%, 67%))'
     },
     {
       id: 'crimson-gradient',
       name: 'Carmim',
       color: 'linear-gradient(135deg, hsl(350, 85%, 55%), hsl(15, 85%, 50%))',
-      bg: 'hsl(350, 15%, 11%)'
+      bg: 'linear-gradient(135deg, hsl(350, 52%, 25%), hsl(12, 45%, 13%))'
     }
   ];
+
+  const themeCurrent = document.createElement('div');
+  themeCurrent.className = 'settings-theme-current';
+  const updateCurrentThemeLabel = (name: string) => {
+    themeCurrent.replaceChildren('Tema atual: ');
+    const strong = document.createElement('strong');
+    strong.textContent = name;
+    themeCurrent.appendChild(strong);
+  };
+  updateCurrentThemeLabel(themes.find((theme) => theme.id === currentTheme)?.name ?? 'Claro');
+  themeSection.appendChild(themeCurrent);
 
   themes.forEach((theme) => {
     const btn = document.createElement('button');
     btn.className = 'settings-theme-btn';
     btn.setAttribute('aria-pressed', String(currentTheme === theme.id));
+    btn.setAttribute('aria-label', `Usar tema ${theme.name}`);
+    btn.title = theme.name;
     btn.style.cssText = `
       display: flex;
-      flex-direction: row;
       align-items: center;
-      justify-content: flex-start;
-      gap: var(--space-2);
-      padding: var(--space-2) var(--space-3);
+      justify-content: center;
+      padding: 5px;
       border-radius: var(--radius-md);
       border: 2px solid ${currentTheme === theme.id ? 'var(--color-primary)' : 'var(--color-border)'};
       background-color: var(--color-bg);
       cursor: pointer;
       transition: all var(--transition-fast);
-      width: calc(50% - 6px);
+      min-width: 0;
+      height: 34px;
     `;
 
     const circle = document.createElement('div');
 
-    // Check if theme.color is a gradient or a solid color
-    // If it's a gradient, we can just use the solid base color for the split, or just use the gradient as the bottom half.
-    // An elegant way is to use a container with overflow hidden and two halves.
     circle.style.cssText = `
-      width: 20px;
-      height: 20px;
+      width: 19px;
+      height: 19px;
       border-radius: 50%;
       border: 1px solid var(--color-border);
       box-shadow: 0 1px 2px rgba(0,0,0,0.05);
@@ -384,17 +411,7 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
     circle.appendChild(accentHalf);
 
-    const label = document.createElement('span');
-    label.textContent = theme.name;
-    label.style.fontSize = 'var(--font-size-xs)';
-    label.style.fontWeight =
-      currentTheme === theme.id ? 'var(--font-weight-semibold)' : 'var(--font-weight-medium)';
-    label.style.color =
-      currentTheme === theme.id ? 'var(--color-text)' : 'var(--color-text-secondary)';
-    label.style.textAlign = 'left';
-
     btn.appendChild(circle);
-    btn.appendChild(label);
 
     btn.addEventListener('click', () => {
       document.documentElement.setAttribute('data-theme', theme.id);
@@ -405,13 +422,10 @@ export async function createSettingsView(): Promise<HTMLElement> {
       Array.from(themeGrid.children).forEach((child) => {
         (child as HTMLElement).style.borderColor = 'var(--color-border)';
         child.setAttribute('aria-pressed', 'false');
-        (child.querySelector('span') as HTMLElement).style.fontWeight = 'var(--font-weight-medium)';
-        (child.querySelector('span') as HTMLElement).style.color = 'var(--color-text-secondary)';
       });
       btn.style.borderColor = 'var(--color-primary)';
       btn.setAttribute('aria-pressed', 'true');
-      label.style.fontWeight = 'var(--font-weight-semibold)';
-      label.style.color = 'var(--color-text)';
+      updateCurrentThemeLabel(theme.name);
     });
 
     // Hover effect

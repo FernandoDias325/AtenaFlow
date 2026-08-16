@@ -92,6 +92,8 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: var(--color-primary);
   --bg-primary-hover: var(--color-primary-hover);
+  --bg-app: linear-gradient(145deg, hsl(220, 62%, 94%), hsl(258, 52%, 92%) 52%, hsl(188, 48%, 93%));
+  --bg-list: linear-gradient(160deg, hsl(222, 42%, 94%), hsl(258, 36%, 91%));
 
   /* ─── Superfícies ──────────────────────────────────────────────────── */
   --color-bg: hsl(40, 15%, 98%);
@@ -158,6 +160,13 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: var(--color-primary);
   --bg-primary-hover: var(--color-primary-hover);
+  --bg-app: radial-gradient(
+    circle at 14% 0%,
+    hsl(230, 38%, 24%),
+    hsl(220, 21%, 11%) 50%,
+    hsl(260, 24%, 9%)
+  );
+  --bg-list: linear-gradient(160deg, hsl(225, 22%, 16%), hsl(255, 22%, 12%));
 
   /* ─── Superfícies ──────────────────────────────────────────────────── */
   --color-bg: hsl(220, 14%, 12%);
@@ -223,6 +232,13 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: linear-gradient(135deg, hsl(260, 80%, 65%), hsl(290, 80%, 60%));
   --bg-primary-hover: linear-gradient(135deg, hsl(260, 80%, 70%), hsl(290, 80%, 65%));
+  --bg-app: radial-gradient(
+    circle at 12% 0%,
+    hsl(278, 46%, 27%),
+    hsl(258, 28%, 12%) 50%,
+    hsl(305, 25%, 9%)
+  );
+  --bg-list: linear-gradient(160deg, hsl(268, 24%, 17%), hsl(292, 22%, 12%));
 
   /* Superfícies escuras com toque roxo */
   --color-bg: hsl(260, 15%, 11%);
@@ -280,6 +296,8 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: linear-gradient(135deg, hsl(320, 80%, 60%), hsl(350, 80%, 60%));
   --bg-primary-hover: linear-gradient(135deg, hsl(320, 80%, 65%), hsl(350, 80%, 65%));
+  --bg-app: linear-gradient(145deg, hsl(322, 76%, 89%), hsl(350, 78%, 85%) 52%, hsl(300, 58%, 90%));
+  --bg-list: linear-gradient(160deg, hsl(330, 64%, 91%), hsl(354, 68%, 87%));
 
   /* Superfícies claras com tom de rosa pastel */
   --color-bg: hsl(340, 45%, 96%);
@@ -337,6 +355,13 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: linear-gradient(135deg, hsl(190, 85%, 50%), hsl(220, 85%, 55%));
   --bg-primary-hover: linear-gradient(135deg, hsl(190, 85%, 55%), hsl(220, 85%, 60%));
+  --bg-app: radial-gradient(
+    circle at 12% 0%,
+    hsl(186, 62%, 24%),
+    hsl(210, 35%, 11%) 52%,
+    hsl(230, 38%, 9%)
+  );
+  --bg-list: linear-gradient(160deg, hsl(195, 32%, 16%), hsl(222, 30%, 11%));
 
   /* Superfícies escuras oceânicas */
   --color-bg: hsl(210, 20%, 10%);
@@ -394,6 +419,8 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: linear-gradient(135deg, hsl(145, 80%, 42%), hsl(175, 80%, 38%));
   --bg-primary-hover: linear-gradient(135deg, hsl(145, 80%, 35%), hsl(175, 80%, 32%));
+  --bg-app: linear-gradient(145deg, hsl(145, 58%, 86%), hsl(174, 62%, 81%) 52%, hsl(128, 48%, 88%));
+  --bg-list: linear-gradient(160deg, hsl(150, 48%, 89%), hsl(174, 54%, 84%));
 
   /* Superfícies claras esverdeadas */
   --color-bg: hsl(150, 30%, 96%);
@@ -451,6 +478,8 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: linear-gradient(135deg, hsl(35, 95%, 55%), hsl(10, 90%, 60%));
   --bg-primary-hover: linear-gradient(135deg, hsl(35, 95%, 48%), hsl(10, 90%, 53%));
+  --bg-app: linear-gradient(145deg, hsl(42, 92%, 85%), hsl(20, 88%, 81%) 54%, hsl(350, 70%, 87%));
+  --bg-list: linear-gradient(160deg, hsl(39, 78%, 89%), hsl(17, 76%, 84%));
 
   /* Superfícies claras quentes */
   --color-bg: hsl(30, 40%, 96%);
@@ -508,6 +537,13 @@
   --color-primary-text: hsl(0, 0%, 100%);
   --bg-primary: linear-gradient(135deg, hsl(350, 85%, 55%), hsl(15, 85%, 50%));
   --bg-primary-hover: linear-gradient(135deg, hsl(350, 85%, 60%), hsl(15, 85%, 55%));
+  --bg-app: radial-gradient(
+    circle at 14% 0%,
+    hsl(350, 55%, 28%),
+    hsl(350, 27%, 12%) 50%,
+    hsl(15, 30%, 9%)
+  );
+  --bg-list: linear-gradient(160deg, hsl(350, 28%, 17%), hsl(10, 25%, 11%));
 
   /* Superfícies escuras rubis */
   --color-bg: hsl(350, 15%, 11%);
@@ -557,7 +593,6 @@
   --color-scrollbar-thumb: hsl(350, 10%, 28%);
   --color-scrollbar-track: transparent;
 }
-
 
 /* ═══════════════════════════════════════════════════════════════════════════
    ESTILOS GLOBAIS BASE

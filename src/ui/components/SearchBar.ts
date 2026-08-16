@@ -11,8 +11,9 @@
 
 const STYLES = `
   .search-container {
-    padding: var(--space-3) var(--space-5);
-    background-color: var(--color-bg);
+    padding: 11px var(--space-4) 12px;
+    background: color-mix(in srgb, var(--color-bg) 72%, transparent);
+    backdrop-filter: blur(14px);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
   }
@@ -26,7 +27,7 @@ const STYLES = `
   .search-box__icon {
     position: absolute;
     left: var(--space-3);
-    color: var(--color-text-tertiary);
+    color: var(--color-primary);
     display: flex;
     align-items: center;
     pointer-events: none;
@@ -34,23 +35,26 @@ const STYLES = `
 
   .search-box__input {
     width: 100%;
+    min-height: 38px;
     padding: var(--space-2) var(--space-4);
     padding-left: calc(var(--space-3) * 2 + 16px);
     padding-right: calc(var(--space-3) * 2 + 16px);
     font-size: var(--font-size-sm);
     font-weight: var(--font-weight-medium);
-    border: 1px solid var(--color-border);
+    border: 1px solid color-mix(in srgb, var(--color-primary) 18%, var(--color-border));
     border-radius: var(--radius-full);
-    background-color: var(--color-bg-secondary);
+    background: color-mix(in srgb, var(--color-bg-secondary) 86%, transparent);
     color: var(--color-text);
+    box-shadow: inset 0 1px 0 color-mix(in srgb, white 7%, transparent);
     transition: all var(--transition-fast);
   }
 
   .search-box__input:focus {
     outline: none;
     border-color: var(--color-border-focus);
-    background-color: var(--color-bg);
-    box-shadow: 0 0 0 3px var(--color-primary-soft);
+    background: color-mix(in srgb, var(--color-bg) 94%, transparent);
+    box-shadow: 0 0 0 3px var(--color-primary-soft),
+      0 7px 18px color-mix(in srgb, var(--color-primary) 12%, transparent);
   }
 
   .search-box__input::-webkit-search-cancel-button {
@@ -94,9 +98,10 @@ const STYLES = `
     font-size: 10px;
     font-family: var(--font-mono);
     color: var(--color-text-tertiary);
-    background-color: var(--color-border);
-    padding: 2px 6px;
-    border-radius: var(--radius-sm);
+    background-color: var(--color-bg-tertiary);
+    border: 1px solid var(--color-border);
+    padding: 2px 7px;
+    border-radius: 6px;
     pointer-events: none;
     transition: opacity var(--transition-fast);
   }
