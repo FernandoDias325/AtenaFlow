@@ -190,6 +190,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
 
   const backBtn = document.createElement('button');
   backBtn.className = 'cat-view__back-btn';
+  backBtn.setAttribute('aria-label', 'Voltar para scripts');
   backBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
   backBtn.addEventListener('click', () => {
     emit('view-changed', { view: 'list' });

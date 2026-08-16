@@ -34,29 +34,28 @@ export const categoryColorMap = new Map<string, string>();
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
 const STYLES = `
+  .category-scroll {
+    display: flex;
+    align-items: center;
+    min-width: 0;
+    position: relative;
+  }
+
   .category-chips {
     display: flex;
+    flex: 1;
+    min-width: 0;
     align-items: center;
     gap: var(--space-2);
     padding: var(--space-2) var(--space-4);
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
-    scrollbar-width: thin;
-    scrollbar-color: var(--color-scrollbar-thumb) transparent;
+    scrollbar-width: none;
   }
 
   .category-chips::-webkit-scrollbar {
-    height: 3px;
-  }
-
-  .category-chips::-webkit-scrollbar-track {
-    background: transparent;
-  }
-
-  .category-chips::-webkit-scrollbar-thumb {
-    background: var(--color-scrollbar-thumb);
-    border-radius: var(--radius-full);
+    display: none;
   }
 
   .category-chip {
@@ -76,6 +75,39 @@ const STYLES = `
     flex-shrink: 0;
     font-family: var(--font-ui);
     line-height: 1.4;
+  }
+
+  .category-scroll__btn {
+    position: absolute;
+    top: 50%;
+    transform: translateY(-50%);
+    z-index: 2;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-full);
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+    box-shadow: var(--shadow-sm);
+    transition: all var(--transition-fast);
+  }
+
+  .category-scroll__btn:first-child { left: 4px; }
+  .category-scroll__btn:last-child { right: 4px; }
+
+  .category-scroll__btn:hover {
+    color: var(--color-primary);
+    border-color: var(--color-border-hover);
+    background: var(--color-bg-hover);
+  }
+
+  .category-scroll__btn--hidden {
+    opacity: 0;
+    visibility: hidden;
+    pointer-events: none;
   }
 
   .category-chip:hover {
@@ -157,8 +189,27 @@ export interface CategoryFilterOptions {
 export function createCategoryFilter(options: CategoryFilterOptions): HTMLElement {
   injectStyles();
 
+  const wrapper = document.createElement('div');
+  wrapper.className = 'category-scroll';
+
   const container = document.createElement('div');
   container.className = 'category-chips';
+
+  const previousBtn = document.createElement('button');
+  previousBtn.className = 'category-scroll__btn category-scroll__btn--hidden';
+  previousBtn.type = 'button';
+  previousBtn.title = 'Categorias anteriores';
+  previousBtn.setAttribute('aria-label', previousBtn.title);
+  previousBtn.innerHTML =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>';
+
+  const nextBtn = document.createElement('button');
+  nextBtn.className = 'category-scroll__btn category-scroll__btn--hidden';
+  nextBtn.type = 'button';
+  nextBtn.title = 'Próximas categorias';
+  nextBtn.setAttribute('aria-label', nextBtn.title);
+  nextBtn.innerHTML =
+    '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>';
 
   const { categories, selectedCategoryId, onSelect } = options;
 
@@ -224,5 +275,26 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
     { passive: false }
   );
 
-  return container;
+  const updateArrowVisibility = () => {
+    const maxScroll = container.scrollWidth - container.clientWidth;
+    previousBtn.classList.toggle('category-scroll__btn--hidden', container.scrollLeft <= 1);
+    nextBtn.classList.toggle(
+      'category-scroll__btn--hidden',
+      maxScroll <= 1 || container.scrollLeft >= maxScroll - 1
+    );
+  };
+
+  previousBtn.addEventListener('click', () => {
+    container.scrollBy({ left: -Math.max(140, container.clientWidth * 0.65), behavior: 'smooth' });
+  });
+  nextBtn.addEventListener('click', () => {
+    container.scrollBy({ left: Math.max(140, container.clientWidth * 0.65), behavior: 'smooth' });
+  });
+  container.addEventListener('scroll', updateArrowVisibility, { passive: true });
+  new ResizeObserver(updateArrowVisibility).observe(container);
+
+  wrapper.append(previousBtn, container, nextBtn);
+  requestAnimationFrame(updateArrowVisibility);
+
+  return wrapper;
 }

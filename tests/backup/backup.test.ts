@@ -92,5 +92,32 @@ describe('Backup Service', () => {
       expect(scripts.length).toBe(1);
       expect(scripts[0]?.title).toBe('Script Importado');
     });
+
+    it('deve rejeitar registros malformados sem gravar parcialmente', async () => {
+      const backupJson = JSON.stringify({
+        version: 2,
+        timestamp: 123,
+        categories: [{ id: 'c1', name: 'Categoria válida' }],
+        scripts: [{ id: 's1', title: '<img src=x>', body: '' }],
+        links: []
+      });
+
+      await expect(importBackup(backupJson)).rejects.toThrow('scripts.body');
+      const db = await getDB();
+      expect(await db.count('categories')).toBe(0);
+      expect(await db.count('scripts')).toBe(0);
+    });
+
+    it('deve rejeitar URLs perigosas', async () => {
+      const backupJson = JSON.stringify({
+        version: 2,
+        timestamp: 123,
+        categories: [],
+        scripts: [],
+        links: [{ id: 'l1', title: 'Perigoso', url: 'javascript:alert(1)' }]
+      });
+
+      await expect(importBackup(backupJson)).rejects.toThrow('URL inválida ou insegura');
+    });
   });
 });

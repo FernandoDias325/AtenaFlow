@@ -12,6 +12,7 @@ import type { Script } from '../../core/models/types';
 import { emit } from '../../store/app-store';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import { recordCopy } from '../../core/db/history.repository';
+import { showConfirmModal } from './ConfirmModal';
 
 // ─── Constantes ──────────────────────────────────────────────────────────────
 
@@ -96,12 +97,6 @@ const STYLES = `
     align-items: center;
     gap: var(--space-1);
     flex-shrink: 0;
-    opacity: 0;
-    transition: opacity var(--transition-fast);
-  }
-
-  .script-card:hover .script-card__actions {
-    opacity: 1;
   }
 
   .script-card__action-btn {
@@ -113,6 +108,13 @@ const STYLES = `
     border-radius: var(--radius-sm);
     color: var(--color-text-secondary);
     transition: all var(--transition-fast);
+    opacity: 0;
+  }
+
+  .script-card:hover .script-card__action-btn,
+  .script-card:focus-within .script-card__action-btn,
+  .script-card__action-btn--active {
+    opacity: 1;
   }
 
   .script-card__action-btn:hover {
@@ -132,6 +134,11 @@ const STYLES = `
     color: var(--color-primary);
   }
 
+  .script-card__action-btn--delete:hover {
+    color: var(--color-error);
+    background-color: var(--color-error-soft);
+  }
+
   .script-card__usage {
     font-size: 10px;
     font-weight: var(--font-weight-medium);
@@ -144,6 +151,20 @@ const STYLES = `
     align-items: center;
     gap: 3px;
   }
+
+  .script-card mark {
+    padding: 0;
+    border-radius: 2px;
+    background: var(--color-warning-soft);
+    color: inherit;
+  }
+
+  .list-view--compact .script-card {
+    padding: var(--space-2) var(--space-3);
+    border-radius: var(--radius-md);
+  }
+  .list-view--compact .script-card__preview { display: none; }
+  .list-view--compact .script-list__cards { gap: var(--space-1); }
 `;
 
 // ─── Injeção de estilos ──────────────────────────────────────────────────────
@@ -171,6 +192,52 @@ function truncate(text: string, maxLength: number): string {
   return singleLine.substring(0, maxLength).trim() + '…';
 }
 
+function appendHighlightedText(element: HTMLElement, text: string, query?: string): void {
+  const term = query?.trim();
+  if (!term) {
+    element.textContent = text;
+    return;
+  }
+  const index = text.toLocaleLowerCase('pt-BR').indexOf(term.toLocaleLowerCase('pt-BR'));
+  if (index < 0) {
+    element.textContent = text;
+    return;
+  }
+  element.append(document.createTextNode(text.slice(0, index)));
+  const mark = document.createElement('mark');
+  mark.textContent = text.slice(index, index + term.length);
+  element.append(mark, document.createTextNode(text.slice(index + term.length)));
+}
+
+function createUsageBadge(usageCount: number): HTMLElement {
+  const badge = document.createElement('span');
+  badge.className = 'script-card__usage';
+  badge.title = `Usado ${usageCount} vezes`;
+  badge.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> <span>${usageCount}</span>`;
+  return badge;
+}
+
+/** Atualiza somente o badge de uso, preservando rolagem e posição dos cards. */
+export function updateScriptCardUsage(scriptId: string, usageCount: number): void {
+  const card = document.querySelector<HTMLElement>(
+    `.script-card[data-script-id="${CSS.escape(scriptId)}"]`
+  );
+  const actions = card?.querySelector<HTMLElement>('.script-card__actions');
+  if (!actions) {
+    return;
+  }
+  const existing = actions.querySelector<HTMLElement>('.script-card__usage');
+  if (existing) {
+    existing.title = `Usado ${usageCount} vezes`;
+    const value = existing.querySelector('span');
+    if (value) {
+      value.textContent = String(usageCount);
+    }
+  } else if (usageCount > 0) {
+    actions.prepend(createUsageBadge(usageCount));
+  }
+}
+
 // ─── Componente ──────────────────────────────────────────────────────────────
 
 export interface ScriptCardOptions {
@@ -178,6 +245,7 @@ export interface ScriptCardOptions {
   onRefresh: () => void;
   /** Cor CSS da categoria (ex: 'var(--color-tag-blue)'). */
   categoryColor?: string;
+  searchQuery?: string;
 }
 
 /**
@@ -187,7 +255,7 @@ export interface ScriptCardOptions {
 export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   injectStyles();
 
-  const { script, onRefresh, categoryColor } = options;
+  const { script, onRefresh, categoryColor, searchQuery } = options;
   const card = document.createElement('div');
   card.className = 'script-card';
   if (script.isPinned) {
@@ -196,6 +264,7 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   card.setAttribute('role', 'button');
   card.setAttribute('tabindex', '0');
   card.setAttribute('aria-label', `Script: ${script.title}`);
+  card.dataset.scriptId = script.id;
 
   // ─── Conteúdo ──────────────────────────────────────────────────────
   const content = document.createElement('div');
@@ -214,14 +283,14 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
 
   const titleEl = document.createElement('div');
   titleEl.className = 'script-card__title';
-  titleEl.textContent = script.title;
+  appendHighlightedText(titleEl, script.title, searchQuery);
   titleRow.appendChild(titleEl);
 
   content.appendChild(titleRow);
 
   const previewEl = document.createElement('div');
   previewEl.className = 'script-card__preview';
-  previewEl.textContent = truncate(script.body, PREVIEW_MAX_LENGTH);
+  appendHighlightedText(previewEl, truncate(script.body, PREVIEW_MAX_LENGTH), searchQuery);
   content.appendChild(previewEl);
 
   card.appendChild(content);
@@ -232,11 +301,7 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
 
   // Badge de Uso (se houver) — ícone SVG em vez de emoji
   if (script.usageCount && script.usageCount > 0) {
-    const usageBadge = document.createElement('span');
-    usageBadge.className = 'script-card__usage';
-    usageBadge.title = `Copiado ${script.usageCount} vezes`;
-    usageBadge.innerHTML = `<svg width="10" height="10" viewBox="0 0 24 24" fill="currentColor" stroke="none"><path d="M13 2L3 14h9l-1 8 10-12h-9l1-8z"/></svg> ${script.usageCount}`;
-    actions.appendChild(usageBadge);
+    actions.appendChild(createUsageBadge(script.usageCount));
   }
 
   // Botão Fixar (Pin)
@@ -303,10 +368,33 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
     emit('view-changed', { view: 'editor', scriptId: script.id });
   });
 
+  // Botão Excluir
+  const deleteBtn = document.createElement('button');
+  deleteBtn.className = 'script-card__action-btn script-card__action-btn--delete';
+  deleteBtn.type = 'button';
+  deleteBtn.setAttribute('aria-label', `Excluir script ${script.title}`);
+  deleteBtn.title = 'Excluir';
+  deleteBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
+  deleteBtn.addEventListener('click', async (e) => {
+    e.stopPropagation();
+    const confirmed = await showConfirmModal({
+      title: 'Excluir script',
+      message: `Tem certeza que deseja excluir "${script.title}"? Ele será movido para a lixeira.`,
+      confirmLabel: 'Excluir',
+      cancelLabel: 'Cancelar'
+    });
+    if (confirmed) {
+      await ScriptsRepo.softDeleteScript(script.id);
+      emit('toast', { message: 'Script movido para a lixeira', type: 'info' });
+      onRefresh();
+    }
+  });
+
   actions.appendChild(pinBtn);
   actions.appendChild(favBtn);
   actions.appendChild(copyBtn);
   actions.appendChild(editBtn);
+  actions.appendChild(deleteBtn);
   card.appendChild(actions);
 
   // ─── Clique no card inteiro → editar ───────────────────────────────

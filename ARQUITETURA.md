@@ -42,8 +42,8 @@ A extensão tem 4 peças, todas dentro do Manifest V3:
 | ------------------------------------------------ | ---------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | **Janela Dedicada (Window)**                     | Superfície principal do dia a dia: abrir → buscar → copiar → fechar. Abre em uma janela própria da extensão iniciada pelo navegador (via `chrome.windows.create`), permitindo minimizar, maximizar, redimensionar, alternar com Alt+Tab e mantendo-se aberta ao clicar fora. |
 | **Workspace** (página completa, aberta numa aba) | Reaproveita os mesmos componentes da Janela Dedicada, mas com espaço de sobra pra gerenciar categorias, importar/exportar, configurações e lixeira. Acessada por um botão "Abrir gerenciador completo".                                                                      |
-| **Service Worker** (background)                  | Não guarda estado de UI. Cuida do ciclo de vida da Janela Dedicada (abrir uma nova ou focar na existente quando o ícone da extensão é clicado), atalhos de teclado globais, backup automático agendado, badge do ícone.                                                      |
-| **IndexedDB**                                    | Fonte única de verdade dos dados: scripts, categorias, histórico, backups internos.                                                                                                                                                                                          |
+| **Service Worker** (background)                  | Não guarda estado de UI. Cuida do ciclo de vida da Janela Dedicada e da comunicação com o content script.                                                                                                                                                              |
+| **IndexedDB**                                    | Fonte única de verdade dos dados: scripts, categorias, links e histórico.                                                                                                                                                                                              |
 
 ```mermaid
 flowchart LR
@@ -54,10 +54,10 @@ flowchart LR
     subgraph CORE["Core: regras de negócio, sem DOM"]
         R["Repositories (CRUD)"]
         S["Search Index (cache em memória)"]
-        IE["Import / Export / Backup"]
+        IE["Importação / Exportação manual"]
     end
     SW["Service Worker"]
-    IDB[("IndexedDB: scripts, categorias, histórico, backups")]
+    IDB[("IndexedDB: scripts, categorias, links e histórico")]
     CS[("chrome.storage.local: configurações")]
 
     JW --> R
@@ -65,7 +65,6 @@ flowchart LR
     R --> IDB
     S --> R
     IE --> R
-    SW -->|chrome.alarms: backup periódico| IE
     SW -->|Gerencia o ciclo de vida| JW
     JW --> CS
     W --> CS
@@ -117,8 +116,7 @@ scriptdesk/
 │   │   │   ├── schema.ts          # object stores + migrations
 │   │   │   ├── scripts.repository.ts
 │   │   │   ├── categories.repository.ts
-│   │   │   ├── history.repository.ts
-│   │   │   └── backups.repository.ts
+│   │   │   └── history.repository.ts
 │   │   ├── search/
 │   │   │   └── search-index.ts    # cache em memória, normalização, filtro
 │   │   ├── import-export/
@@ -177,11 +175,11 @@ flowchart TD
 
 ## 4. Banco de Dados Local
 
-### 4.1 Estratégia de persistência e backup
+### 4.1 Estratégia de persistência e exportação
 
 - **unlimitedStorage:** Permissão declarada no manifest para remover restrições de cota do IndexedDB.
-- **Backup Automático Interno:** Roda no service worker via `chrome.alarms` e armazena snapshots compactados de forma rotativa (últimas 7 versões) dentro do próprio IndexedDB.
 - **Exportação Manual:** Arquivo `.json` gerado sob demanda para que o usuário possa fazer download.
+- **Importação Manual:** Mescla um arquivo `.json` compatível aos dados locais.
 
 ### 4.2 Schema (Object Stores)
 
@@ -192,7 +190,7 @@ Banco: `scriptdesk-db`, versão 1.
 | `scripts`     | `id`, `title`, `categoryId`, `body`, `tags[]`, `colorTag?`, `isFavorite`, `isPinned`, `usageCount`, `notes?`, `createdAt`, `updatedAt`, `deletedAt` | `categoryId`, `isFavorite`, `isPinned`, `updatedAt`, `deletedAt` |
 | `categories`  | `id`, `name`, `color`, `order`, `createdAt`                                                                                                         | `order`                                                          |
 | `copyHistory` | `id`, `scriptId`, `copiedAt`                                                                                                                        | `copiedAt`                                                       |
-| `backups`     | `id`, `createdAt`, `schemaVersion`, `sizeBytes`, `data`                                                                                             | `createdAt`                                                      |
+| `backups`     | Store legado preservado somente por compatibilidade com instalações anteriores                                                              | `createdAt`                                                      |
 | `settings`    | linha única com configurações da extensão                                                                                                           | —                                                                |
 
 ---
@@ -233,17 +231,8 @@ interface CopyHistoryEntry {
   copiedAt: number;
 }
 
-interface BackupSnapshot {
-  id: string;
-  createdAt: number;
-  schemaVersion: number;
-  sizeBytes: number;
-  data: string;
-}
-
 interface Settings {
   theme: 'light' | 'dark' | 'system';
-  autoBackup: { enabled: boolean; frequencyHours: number };
   shortcuts: Record<string, string>;
   defaultView: 'list' | 'grid';
   schemaVersion: number;

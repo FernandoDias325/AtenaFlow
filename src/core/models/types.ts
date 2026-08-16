@@ -78,7 +78,7 @@ export interface CopyHistoryEntry {
 
 // ─── Backup ──────────────────────────────────────────────────────────────────
 
-/** Snapshot de backup completo armazenado dentro do IndexedDB. */
+/** Formato legado mantido para abrir bancos existentes sem migração destrutiva. */
 export interface BackupSnapshot {
   /** Identificador único do backup. */
   id: string;
@@ -93,12 +93,6 @@ export interface BackupSnapshot {
 }
 
 // ─── Settings ────────────────────────────────────────────────────────────────
-
-/** Configuração de backup automático. */
-export interface AutoBackupConfig {
-  enabled: boolean;
-  frequencyHours: number;
-}
 
 // ─── Links ───────────────────────────────────────────────────────────────────
 
@@ -122,8 +116,6 @@ export interface Link {
 export interface Settings {
   /** Tema visual da aplicação. */
   theme: 'light' | 'dark' | 'system';
-  /** Configuração do backup automático periódico. */
-  autoBackup: AutoBackupConfig;
   /** Mapeamento de atalhos de teclado personalizados. */
   shortcuts: Record<string, string>;
   /** Visualização padrão da lista de scripts. */
@@ -137,11 +129,5 @@ export interface Settings {
 /** Número máximo de entradas no histórico de cópias. */
 export const MAX_COPY_HISTORY_ENTRIES = 100;
 
-/** Número máximo de backups internos mantidos (rotação). */
-export const MAX_BACKUP_SNAPSHOTS = 7;
-
 /** Número máximo de versões anteriores do corpo de um script. */
 export const MAX_SCRIPT_HISTORY_ENTRIES = 5;
-
-/** Versão atual do schema do banco de dados. */
-export const CURRENT_SCHEMA_VERSION = 1;

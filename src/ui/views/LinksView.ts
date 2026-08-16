@@ -3,6 +3,7 @@ import * as LinksRepo from '../../core/db/links.repository';
 import type { Link } from '../../core/models/types';
 import { showConfirmModal } from '../components/ConfirmModal';
 import { createSearchBar } from '../components/SearchBar';
+import { normalizeHttpUrl } from '../../core/validation/url';
 
 const STYLES = `
   .links-view {
@@ -223,6 +224,7 @@ export async function createLinksView(): Promise<HTMLElement> {
 
   const backBtn = document.createElement('button');
   backBtn.className = 'links-view__back-btn';
+  backBtn.setAttribute('aria-label', 'Voltar para scripts');
   backBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
   backBtn.addEventListener('click', () => {
     emit('view-changed', { view: 'list' });
@@ -315,18 +317,39 @@ export async function createLinksView(): Promise<HTMLElement> {
       item.appendChild(info);
 
       item.addEventListener('click', () => {
-        let finalUrl = link.url;
-        if (!finalUrl.startsWith('http://') && !finalUrl.startsWith('https://')) {
-          finalUrl = 'https://' + finalUrl;
+        const finalUrl = normalizeHttpUrl(link.url);
+        if (finalUrl) {
+          window.open(finalUrl, '_blank', 'noopener,noreferrer');
         }
-        window.open(finalUrl, '_blank');
       });
 
       const actions = document.createElement('div');
       actions.className = 'link-item__actions';
 
+      const copyBtn = document.createElement('button');
+      copyBtn.className = 'link-btn';
+      copyBtn.setAttribute('aria-label', `Copiar link ${link.title}`);
+      copyBtn.title = 'Copiar link';
+      copyBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"/><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"/></svg>`;
+      copyBtn.addEventListener('click', async (event) => {
+        event.stopPropagation();
+        const url = normalizeHttpUrl(link.url);
+        if (!url) {
+          emit('toast', { message: 'Este link possui uma URL inválida', type: 'error' });
+          return;
+        }
+        try {
+          await navigator.clipboard.writeText(url);
+          emit('toast', { message: 'Link copiado!', type: 'success' });
+        } catch {
+          emit('toast', { message: 'Não foi possível copiar o link', type: 'error' });
+        }
+      });
+      actions.appendChild(copyBtn);
+
       const editBtn = document.createElement('button');
       editBtn.className = 'link-btn';
+      editBtn.setAttribute('aria-label', `Editar link ${link.title}`);
       editBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/><path d="m15 5 4 4"/></svg>`;
       editBtn.addEventListener('click', (e) => {
         e.stopPropagation();
@@ -336,6 +359,7 @@ export async function createLinksView(): Promise<HTMLElement> {
 
       const delBtn = document.createElement('button');
       delBtn.className = 'link-btn link-btn--danger';
+      delBtn.setAttribute('aria-label', `Excluir link ${link.title}`);
       delBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/></svg>`;
       delBtn.addEventListener('click', async (e) => {
         e.stopPropagation();
@@ -364,24 +388,40 @@ export async function createLinksView(): Promise<HTMLElement> {
   const showModal = (linkToEdit?: Link) => {
     const modal = document.createElement('div');
     modal.className = 'link-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    const closeOnEscape = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        closeModal();
+      }
+    };
+    const closeModal = () => {
+      modal.remove();
+      document.removeEventListener('keydown', closeOnEscape);
+    };
 
     const modalContent = document.createElement('div');
     modalContent.className = 'link-modal__content';
 
     const modalTitle = document.createElement('div');
     modalTitle.className = 'link-modal__title';
+    modalTitle.id = 'link-modal-title';
+    modal.setAttribute('aria-labelledby', modalTitle.id);
     modalTitle.textContent = linkToEdit ? 'Editar Link' : 'Novo Link';
     modalContent.appendChild(modalTitle);
 
     const titleInput = document.createElement('input');
     titleInput.className = 'link-modal__input';
     titleInput.placeholder = 'Nome do site (ex: CRM Vendas)';
+    titleInput.setAttribute('aria-label', 'Nome do link');
     titleInput.value = linkToEdit?.title || '';
     modalContent.appendChild(titleInput);
 
     const urlInput = document.createElement('input');
     urlInput.className = 'link-modal__input';
     urlInput.placeholder = 'URL (ex: app.crm.com)';
+    urlInput.type = 'url';
+    urlInput.setAttribute('aria-label', 'Endereço do link');
     urlInput.value = linkToEdit?.url || '';
     modalContent.appendChild(urlInput);
 
@@ -391,16 +431,23 @@ export async function createLinksView(): Promise<HTMLElement> {
     const cancelBtn = document.createElement('button');
     cancelBtn.className = 'link-modal__btn link-modal__btn--cancel';
     cancelBtn.textContent = 'Cancelar';
-    cancelBtn.onclick = () => modal.remove();
+    cancelBtn.onclick = closeModal;
 
     const saveBtn = document.createElement('button');
     saveBtn.className = 'link-modal__btn link-modal__btn--save';
     saveBtn.textContent = 'Salvar';
     saveBtn.onclick = async () => {
       const title = titleInput.value.trim();
-      const url = urlInput.value.trim();
-      if (!title || !url) {
+      const rawUrl = urlInput.value.trim();
+      if (!title || !rawUrl) {
         emit('toast', { message: 'Preencha título e URL', type: 'error' });
+        return;
+      }
+      const url = normalizeHttpUrl(rawUrl);
+      if (!url) {
+        urlInput.setAttribute('aria-invalid', 'true');
+        urlInput.focus();
+        emit('toast', { message: 'Informe uma URL HTTP ou HTTPS válida', type: 'error' });
         return;
       }
 
@@ -412,7 +459,7 @@ export async function createLinksView(): Promise<HTMLElement> {
           await LinksRepo.createLink({ title, url });
           emit('toast', { message: 'Link adicionado', type: 'success' });
         }
-        modal.remove();
+        closeModal();
         renderLinks();
       } catch (err) {
         emit('toast', { message: 'Erro ao salvar link', type: 'error' });
@@ -425,6 +472,8 @@ export async function createLinksView(): Promise<HTMLElement> {
 
     modal.appendChild(modalContent);
     container.appendChild(modal);
+
+    document.addEventListener('keydown', closeOnEscape);
 
     setTimeout(() => titleInput.focus(), 50);
   };

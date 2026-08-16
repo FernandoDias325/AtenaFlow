@@ -13,6 +13,7 @@
 
 import { getDB } from '../db/schema';
 import type { Script, Category, Link } from '../models/types';
+import { normalizeHttpUrl } from '../validation/url';
 
 export interface ExportData {
   version: 1 | 2;
@@ -20,6 +21,89 @@ export interface ExportData {
   categories: Category[];
   scripts: Script[];
   links?: Link[];
+}
+
+const MAX_IMPORT_ITEMS = 20_000;
+const MAX_TITLE_LENGTH = 500;
+const MAX_BODY_LENGTH = 1_000_000;
+
+function requiredString(value: unknown, field: string, maxLength: number): string {
+  if (typeof value !== 'string' || !value.trim() || value.length > maxLength) {
+    throw new Error(`Campo inválido no backup: ${field}.`);
+  }
+  return value;
+}
+
+function finiteNumber(value: unknown, fallback: number): number {
+  return typeof value === 'number' && Number.isFinite(value) ? value : fallback;
+}
+
+function normalizeCategory(value: unknown): Category {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Categoria inválida no backup.');
+  }
+  const item = value as Record<string, unknown>;
+  return {
+    id: requiredString(item['id'], 'categories.id', 200),
+    name: requiredString(item['name'], 'categories.name', MAX_TITLE_LENGTH),
+    color:
+      typeof item['color'] === 'string' && item['color'].length <= 100 ? item['color'] : '#64748b',
+    order: finiteNumber(item['order'], 0),
+    createdAt: finiteNumber(item['createdAt'], Date.now())
+  };
+}
+
+function normalizeScript(value: unknown, categoryIds: Set<string>): Script {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Script inválido no backup.');
+  }
+  const item = value as Record<string, unknown>;
+  const now = Date.now();
+  const categoryId =
+    typeof item['categoryId'] === 'string' && categoryIds.has(item['categoryId'])
+      ? item['categoryId']
+      : null;
+  return {
+    id: requiredString(item['id'], 'scripts.id', 200),
+    title: requiredString(item['title'], 'scripts.title', MAX_TITLE_LENGTH),
+    body: requiredString(item['body'], 'scripts.body', MAX_BODY_LENGTH),
+    categoryId,
+    tags: Array.isArray(item['tags'])
+      ? item['tags'].filter((tag): tag is string => typeof tag === 'string').slice(0, 100)
+      : [],
+    isFavorite: item['isFavorite'] === true,
+    isPinned: item['isPinned'] === true,
+    usageCount: 0,
+    createdAt: finiteNumber(item['createdAt'], now),
+    updatedAt: finiteNumber(item['updatedAt'], now),
+    deletedAt: null,
+    ...(typeof item['notes'] === 'string' && item['notes'].length <= MAX_BODY_LENGTH
+      ? { notes: item['notes'] }
+      : {}),
+    ...(typeof item['colorTag'] === 'string' && item['colorTag'].length <= 100
+      ? { colorTag: item['colorTag'] }
+      : {})
+  };
+}
+
+function normalizeLink(value: unknown): Link {
+  if (!value || typeof value !== 'object') {
+    throw new Error('Link inválido no backup.');
+  }
+  const item = value as Record<string, unknown>;
+  const rawUrl = requiredString(item['url'], 'links.url', 4_096);
+  const url = normalizeHttpUrl(rawUrl);
+  if (!url) {
+    throw new Error('URL inválida ou insegura encontrada no backup.');
+  }
+  return {
+    id: requiredString(item['id'], 'links.id', 200),
+    title: requiredString(item['title'], 'links.title', MAX_TITLE_LENGTH),
+    url,
+    order: finiteNumber(item['order'], 0),
+    createdAt: finiteNumber(item['createdAt'], Date.now()),
+    deletedAt: null
+  };
 }
 
 /**
@@ -78,7 +162,6 @@ export async function importBackup(jsonString: string): Promise<void> {
     throw new Error('Arquivo JSON inválido ou corrompido.');
   }
 
-  // Validação super básica da estrutura (duck typing)
   if (!parsed || typeof parsed !== 'object') {
     throw new Error('O formato do arquivo é inválido.');
   }
@@ -91,8 +174,19 @@ export async function importBackup(jsonString: string): Promise<void> {
   ) {
     throw new Error('Arquivo de backup incompatível ou mal formatado.');
   }
+  if (
+    parsedObj['categories'].length > MAX_IMPORT_ITEMS ||
+    parsedObj['scripts'].length > MAX_IMPORT_ITEMS ||
+    (parsedObj['links'] !== undefined && !Array.isArray(parsedObj['links'])) ||
+    (Array.isArray(parsedObj['links']) && parsedObj['links'].length > MAX_IMPORT_ITEMS)
+  ) {
+    throw new Error('Arquivo de backup excede o limite permitido.');
+  }
 
-  const data = parsed as ExportData;
+  const categories = parsedObj['categories'].map(normalizeCategory);
+  const categoryIds = new Set(categories.map((category) => category.id));
+  const scripts = parsedObj['scripts'].map((script) => normalizeScript(script, categoryIds));
+  const links = Array.isArray(parsedObj['links']) ? parsedObj['links'].map(normalizeLink) : [];
   const db = await getDB();
 
   // Iniciar transação de escrita para as tabelas
@@ -103,45 +197,30 @@ export async function importBackup(jsonString: string): Promise<void> {
 
   try {
     // 1. Upsert das Categorias
-    for (const cat of data.categories) {
-      if (typeof cat.id === 'string' && typeof cat.name === 'string') {
-        await categoriesStore.put(cat);
-      }
+    for (const cat of categories) {
+      await categoriesStore.put(cat);
     }
 
     // 2. Upsert dos Scripts
-    for (const script of data.scripts) {
-      if (
-        typeof script.id === 'string' &&
-        typeof script.title === 'string' &&
-        typeof script.body === 'string'
-      ) {
-        const existing = await scriptsStore.get(script.id);
-        if (existing) {
-          // Manter rigorosamente as estatísticas de uso locais!
-          // O usuário reclamou que importar scripts trazia o uso e estragava a ordem local.
-          script.usageCount = existing.usageCount || 0;
-          script.updatedAt = Math.max(script.updatedAt || 0, existing.updatedAt || 0);
-          script.isFavorite = existing.isFavorite; // Preservar favoritos locais
-          script.isPinned = existing.isPinned; // Preservar fixados locais
-        } else {
-          // Script novo vindo do backup começa com 0 usos para não poluir os "Mais Usados"
-          script.usageCount = 0;
-        }
-        await scriptsStore.put(script);
+    for (const script of scripts) {
+      const existing = await scriptsStore.get(script.id);
+      if (existing) {
+        // Manter rigorosamente as estatísticas de uso locais!
+        // O usuário reclamou que importar scripts trazia o uso e estragava a ordem local.
+        script.usageCount = existing.usageCount || 0;
+        script.updatedAt = Math.max(script.updatedAt || 0, existing.updatedAt || 0);
+        script.isFavorite = existing.isFavorite; // Preservar favoritos locais
+        script.isPinned = existing.isPinned; // Preservar fixados locais
+      } else {
+        // Script novo vindo do backup começa com 0 usos para não poluir os "Mais Usados"
+        script.usageCount = 0;
       }
+      await scriptsStore.put(script);
     }
 
     // 3. Upsert dos Links
-    const linksToImport = data.links || [];
-    for (const link of linksToImport) {
-      if (
-        typeof link.id === 'string' &&
-        typeof link.title === 'string' &&
-        typeof link.url === 'string'
-      ) {
-        await linksStore.put(link);
-      }
+    for (const link of links) {
+      await linksStore.put(link);
     }
 
     await tx.done;

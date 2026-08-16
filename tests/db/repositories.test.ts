@@ -8,7 +8,6 @@
  *  - ScriptsRepository: CRUD, soft delete, hard delete, restore, favoritos, pinned, uso, histórico
  *  - CategoriesRepository: CRUD, reordenação
  *  - HistoryRepository: registro, leitura, trim, limpeza
- *  - BackupsRepository: criação, rotação, exclusão
  */
 
 import 'fake-indexeddb/auto';
@@ -17,8 +16,7 @@ import { closeDB } from '../../src/core/db/schema';
 import * as ScriptsRepo from '../../src/core/db/scripts.repository';
 import * as CategoriesRepo from '../../src/core/db/categories.repository';
 import * as HistoryRepo from '../../src/core/db/history.repository';
-import * as BackupsRepo from '../../src/core/db/backups.repository';
-import { MAX_COPY_HISTORY_ENTRIES, MAX_BACKUP_SNAPSHOTS } from '../../src/core/models/types';
+import { MAX_COPY_HISTORY_ENTRIES } from '../../src/core/models/types';
 
 // ─── Setup e Teardown ────────────────────────────────────────────────────────
 
@@ -228,6 +226,15 @@ describe('ScriptsRepository', () => {
     it('deve retornar undefined para ID inexistente', async () => {
       const result = await ScriptsRepo.incrementUsageCount('id-fake');
       expect(result).toBeUndefined();
+    });
+
+    it('deve iniciar em 1 quando um script antigo não possui contador', async () => {
+      const created = await ScriptsRepo.createScript({ title: 'Legado', body: 'corpo' });
+      const db = await import('../../src/core/db/schema').then((module) => module.getDB());
+      await db.put('scripts', { ...created, usageCount: undefined as unknown as number });
+
+      expect(await ScriptsRepo.incrementUsageCount(created.id)).toBe(1);
+      expect((await ScriptsRepo.getScript(created.id))?.usageCount).toBe(1);
     });
   });
 
@@ -450,78 +457,5 @@ describe('HistoryRepository', () => {
 });
 
 // ═════════════════════════════════════════════════════════════════════════════
-//  BACKUPS REPOSITORY
+//  FIM DOS TESTES DE REPOSITÓRIOS
 // ═════════════════════════════════════════════════════════════════════════════
-
-describe('BackupsRepository', () => {
-  const sampleData = JSON.stringify({ scripts: [], categories: [] });
-
-  describe('createBackup', () => {
-    it('deve criar um snapshot de backup com metadados corretos', async () => {
-      const backup = await BackupsRepo.createBackup(sampleData);
-
-      expect(backup.id).toBeDefined();
-      expect(backup.createdAt).toBeGreaterThan(0);
-      expect(backup.schemaVersion).toBe(1);
-      expect(backup.sizeBytes).toBeGreaterThan(0);
-      expect(backup.data).toBe(sampleData);
-    });
-  });
-
-  describe('getAllBackups', () => {
-    it('deve retornar todos os backups registrados', async () => {
-      await BackupsRepo.createBackup('{"v":1}');
-      await BackupsRepo.createBackup('{"v":2}');
-
-      const all = await BackupsRepo.getAllBackups();
-      expect(all.length).toBe(2);
-
-      const allData = all.map((b) => b.data);
-      expect(allData).toContain('{"v":1}');
-      expect(allData).toContain('{"v":2}');
-    });
-  });
-
-  describe('getBackup', () => {
-    it('deve retornar o backup pelo ID', async () => {
-      const created = await BackupsRepo.createBackup(sampleData);
-      const found = await BackupsRepo.getBackup(created.id);
-
-      expect(found).toBeDefined();
-      expect(found?.data).toBe(sampleData);
-    });
-
-    it('deve retornar undefined para ID inexistente', async () => {
-      const found = await BackupsRepo.getBackup('id-fake');
-      expect(found).toBeUndefined();
-    });
-  });
-
-  describe('deleteBackup', () => {
-    it('deve remover o backup pelo ID', async () => {
-      const created = await BackupsRepo.createBackup(sampleData);
-      const result = await BackupsRepo.deleteBackup(created.id);
-
-      expect(result).toBe(true);
-
-      const found = await BackupsRepo.getBackup(created.id);
-      expect(found).toBeUndefined();
-    });
-
-    it('deve retornar false para ID inexistente', async () => {
-      const result = await BackupsRepo.deleteBackup('id-fake');
-      expect(result).toBe(false);
-    });
-  });
-
-  describe('trimBackups (rotação automática)', () => {
-    it(`deve manter no máximo ${MAX_BACKUP_SNAPSHOTS} snapshots`, async () => {
-      for (let i = 0; i < MAX_BACKUP_SNAPSHOTS + 3; i++) {
-        await BackupsRepo.createBackup(`{"i":${i}}`);
-      }
-
-      const all = await BackupsRepo.getAllBackups();
-      expect(all.length).toBe(MAX_BACKUP_SNAPSHOTS);
-    });
-  });
-});

@@ -10,6 +10,7 @@ import '../../src/ui/theme/tokens.css';
 import { getDB } from '../../src/core/db/schema';
 import { initAppShell } from '../../src/ui/components/AppShell';
 import { initToastSystem } from '../../src/ui/components/ToastNotification';
+import { updateListUsageCount } from '../../src/ui/views/ListView';
 
 async function main(): Promise<void> {
   try {
@@ -39,6 +40,13 @@ async function main(): Promise<void> {
     }
 
     await initAppShell(rootEl);
+
+    // Mantém a lista sincronizada quando um script é usado pelo popup injetado nas páginas.
+    chrome.runtime.onMessage.addListener((message) => {
+      if (message?.type === 'USAGE_COUNT_UPDATED') {
+        updateListUsageCount(message.scriptId, message.usageCount);
+      }
+    });
 
     console.log('AtenaFlow: Janela dedicada inicializada com sucesso.');
   } catch (error) {

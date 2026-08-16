@@ -57,11 +57,27 @@ export default defineBackground(() => {
     }
 
     if (message.type === 'INCREMENT_USAGE_COUNT' && message.scriptId) {
-      import('../src/core/db/scripts.repository').then((repo) => {
-        repo.incrementUsageCount(message.scriptId).then(() => {
-          sendResponse({ success: true });
+      import('../src/core/db/scripts.repository')
+        .then((repo) => repo.incrementUsageCount(message.scriptId))
+        .then((usageCount) => {
+          sendResponse({ success: usageCount !== undefined, usageCount });
+          if (usageCount !== undefined) {
+            // Avisa a janela aberta para atualizar o contador sem exigir uma ação manual.
+            void chrome.runtime
+              .sendMessage({
+                type: 'USAGE_COUNT_UPDATED',
+                scriptId: message.scriptId,
+                usageCount
+              })
+              .catch(() => {
+                // A janela dedicada pode estar fechada; o contador já foi persistido no banco.
+              });
+          }
+        })
+        .catch((error) => {
+          console.error('[AtenaFlow] Erro ao contabilizar uso:', error);
+          sendResponse({ success: false });
         });
-      });
       return true;
     }
 

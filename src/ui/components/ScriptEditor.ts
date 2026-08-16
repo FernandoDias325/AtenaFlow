@@ -2,7 +2,7 @@
  * ScriptEditor.ts — Formulário de criação e edição de scripts.
  *
  * Campos: título, corpo (textarea com auto-resize), observações.
- * Ações: Salvar, Cancelar, Excluir (com modal de confirmação).
+ * Ações: Salvar e Cancelar.
  * Usa textContent para prevenir XSS em todos os campos.
  *
  * Referência: ARQUITETURA.md — Seção 6 (ScriptEditor)
@@ -12,7 +12,7 @@ import type { Script } from '../../core/models/types';
 import { emit } from '../../store/app-store';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import * as CategoriesRepo from '../../core/db/categories.repository';
-import { showConfirmModal } from './ConfirmModal';
+import { showInputModal } from './InputModal';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -27,7 +27,7 @@ const STYLES = `
   .editor__header {
     display: flex;
     align-items: center;
-    justify-content: space-between;
+    justify-content: flex-end;
     padding: var(--space-3) var(--space-5);
     border-bottom: 1px solid var(--color-border);
     background-color: var(--color-bg);
@@ -224,11 +224,6 @@ const STYLES = `
     flex-shrink: 0;
   }
 
-  .editor__footer-left {
-    display: flex;
-    gap: var(--space-2);
-  }
-
   .editor__footer-right {
     display: flex;
     gap: var(--space-2);
@@ -268,15 +263,6 @@ const STYLES = `
     color: var(--color-text);
   }
 
-  .editor__btn--delete {
-    background-color: transparent;
-    color: var(--color-error);
-    border: 1px solid var(--color-error);
-  }
-
-  .editor__btn--delete:hover {
-    background-color: var(--color-error-soft);
-  }
 `;
 
 // ─── Injeção de estilos ──────────────────────────────────────────────────────
@@ -475,12 +461,38 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
   bodyLabel.htmlFor = 'editor-body';
   bodyField.appendChild(bodyLabel);
 
+  const variableBtn = document.createElement('button');
+  variableBtn.type = 'button';
+  variableBtn.className = 'editor__category-new-btn';
+  variableBtn.textContent = '+ Inserir variável';
+  variableBtn.title = 'Insere uma variável no formato {{nome}}';
+
   const bodyTextarea = document.createElement('textarea');
   bodyTextarea.className = 'editor__textarea';
   bodyTextarea.id = 'editor-body';
   bodyTextarea.placeholder = 'Cole ou escreva o texto do script aqui...';
   bodyTextarea.value = script?.body ?? '';
   bodyField.appendChild(bodyTextarea);
+  bodyField.insertBefore(variableBtn, bodyTextarea);
+
+  variableBtn.addEventListener('click', async () => {
+    const start = bodyTextarea.selectionStart;
+    const end = bodyTextarea.selectionEnd;
+    const requestedName = await showInputModal({
+      title: 'Inserir variável',
+      message: 'Digite somente o nome. As chaves {{ }} serão adicionadas automaticamente.',
+      placeholder: 'Ex: nome, protocolo ou prazo',
+      confirmLabel: 'Inserir'
+    });
+    const name = requestedName?.trim().replace(/[{}]/g, '');
+    if (!name) {
+      return;
+    }
+    const variable = `{{${name}}}`;
+    bodyTextarea.setRangeText(variable, start, end, 'end');
+    bodyTextarea.dispatchEvent(new Event('input', { bubbles: true }));
+    bodyTextarea.focus();
+  });
 
   // Contador de caracteres
   const charCount = document.createElement('div');
@@ -519,34 +531,6 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
   // ─── Footer com ações ──────────────────────────────────────────────
   const footer = document.createElement('div');
   footer.className = 'editor__footer';
-
-  const footerLeft = document.createElement('div');
-  footerLeft.className = 'editor__footer-left';
-
-  // Botão Excluir (só aparece ao editar)
-  if (isEditing) {
-    const deleteBtn = document.createElement('button');
-    deleteBtn.className = 'editor__btn editor__btn--delete';
-    deleteBtn.type = 'button';
-    deleteBtn.textContent = 'Excluir';
-    deleteBtn.addEventListener('click', async () => {
-      const confirmed = await showConfirmModal({
-        title: 'Excluir script',
-        message: `Tem certeza que deseja excluir "${script.title}"? Ele será movido para a lixeira.`,
-        confirmLabel: 'Excluir',
-        cancelLabel: 'Cancelar'
-      });
-
-      if (confirmed) {
-        await ScriptsRepo.softDeleteScript(script.id);
-        emit('toast', { message: 'Script movido para a lixeira', type: 'info' });
-        goBack();
-      }
-    });
-    footerLeft.appendChild(deleteBtn);
-  }
-
-  footer.appendChild(footerLeft);
 
   const footerRight = document.createElement('div');
   footerRight.className = 'editor__footer-right';

@@ -230,7 +230,7 @@ export async function incrementUsageCount(id: string): Promise<number | undefine
     return undefined;
   }
 
-  script.usageCount += 1;
+  script.usageCount = (Number.isFinite(script.usageCount) ? script.usageCount : 0) + 1;
   script.updatedAt = now();
   await db.put('scripts', script);
   return script.usageCount;

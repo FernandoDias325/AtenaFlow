@@ -1,4 +1,5 @@
 import { emit } from '../../store/app-store';
+import { sanitizeNotepadHtml } from '../../core/security/sanitize-html';
 
 const STYLES = `
   .notepad-view {
@@ -223,6 +224,7 @@ export async function createNotepadView(): Promise<HTMLElement> {
 
   const backBtn = document.createElement('button');
   backBtn.className = 'notepad-view__back-btn';
+  backBtn.setAttribute('aria-label', 'Voltar para scripts');
   backBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
   backBtn.addEventListener('click', () => {
     emit('view-changed', { view: 'list' });
@@ -264,6 +266,9 @@ export async function createNotepadView(): Promise<HTMLElement> {
     btn.className = 'notepad-toolbar__btn';
     btn.innerHTML = icon;
     btn.title = title;
+    if (title) {
+      btn.setAttribute('aria-label', title);
+    }
 
     if (command && !command.startsWith('custom_')) {
       formatButtons[command] = btn;
@@ -489,7 +494,11 @@ export async function createNotepadView(): Promise<HTMLElement> {
   try {
     const data = await chrome.storage.local.get('atenaflow-notepad');
     if (data['atenaflow-notepad']) {
-      editor.innerHTML = data['atenaflow-notepad'];
+      const sanitized = sanitizeNotepadHtml(String(data['atenaflow-notepad']));
+      editor.innerHTML = sanitized;
+      if (sanitized !== data['atenaflow-notepad']) {
+        await chrome.storage.local.set({ 'atenaflow-notepad': sanitized });
+      }
     }
   } catch (err) {
     console.error('Erro ao carregar bloco de notas:', err);
@@ -536,6 +545,20 @@ export async function createNotepadView(): Promise<HTMLElement> {
 
   editor.addEventListener('keyup', updateToolbarState);
   editor.addEventListener('mouseup', updateToolbarState);
+  editor.addEventListener('paste', (event) => {
+    event.preventDefault();
+    const clipboard = event.clipboardData;
+    const html = clipboard?.getData('text/html');
+    const text = clipboard?.getData('text/plain') ?? '';
+    const safeContent = html
+      ? sanitizeNotepadHtml(html)
+      : text
+          .replace(/&/g, '&amp;')
+          .replace(/</g, '&lt;')
+          .replace(/>/g, '&gt;')
+          .replace(/\r?\n/g, '<br>');
+    document.execCommand('insertHTML', false, safeContent);
+  });
   editor.addEventListener('click', (e) => {
     updateToolbarState();
 
@@ -583,7 +606,8 @@ export async function createNotepadView(): Promise<HTMLElement> {
 
     saveTimeout = setTimeout(async () => {
       try {
-        await chrome.storage.local.set({ 'atenaflow-notepad': editor.innerHTML });
+        const sanitized = sanitizeNotepadHtml(editor.innerHTML);
+        await chrome.storage.local.set({ 'atenaflow-notepad': sanitized });
         status.textContent = 'Salvo';
 
         if (statusTimeout) {

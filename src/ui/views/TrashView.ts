@@ -197,6 +197,7 @@ export async function createTrashView(): Promise<HTMLElement> {
 
   const backBtn = document.createElement('button');
   backBtn.className = 'trash-view__back-btn';
+  backBtn.setAttribute('aria-label', 'Voltar para configurações');
   backBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m15 18-6-6 6-6"/></svg>`;
   backBtn.addEventListener('click', () => {
     // Retorna para configurações pois é de onde viemos
@@ -269,7 +270,11 @@ export async function createTrashView(): Promise<HTMLElement> {
 
       const titleEl = document.createElement('div');
       titleEl.className = 'trash-item__title';
-      titleEl.innerHTML = `${item.title} <span class="trash-item__badge trash-item__badge--${type}">${type === 'script' ? 'Script' : 'Link'}</span>`;
+      const titleText = document.createTextNode(item.title);
+      const badge = document.createElement('span');
+      badge.className = `trash-item__badge trash-item__badge--${type}`;
+      badge.textContent = type === 'script' ? 'Script' : 'Link';
+      titleEl.append(titleText, badge);
       infoEl.appendChild(titleEl);
 
       const dateEl = document.createElement('div');
@@ -291,6 +296,7 @@ export async function createTrashView(): Promise<HTMLElement> {
       const restoreBtn = document.createElement('button');
       restoreBtn.className = 'trash-btn trash-btn--restore';
       restoreBtn.title = 'Restaurar';
+      restoreBtn.setAttribute('aria-label', `Restaurar ${item.title}`);
       restoreBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 12a9 9 0 1 0 9-9 9.75 9.75 0 0 0-6.74 2.74L3 8"/><path d="M3 3v5h5"/></svg>`;
       restoreBtn.addEventListener('click', async () => {
         if (type === 'script') {
@@ -308,6 +314,7 @@ export async function createTrashView(): Promise<HTMLElement> {
       const delBtn = document.createElement('button');
       delBtn.className = 'trash-btn trash-btn--delete';
       delBtn.title = 'Excluir Definitivamente';
+      delBtn.setAttribute('aria-label', `Excluir definitivamente ${item.title}`);
       delBtn.innerHTML = `<svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round"><path d="M3 6h18"/><path d="M19 6v14c0 1-1 2-2 2H7c-1 0-2-1-2-2V6"/><path d="M8 6V4c0-1 1-2 2-2h4c1 0 2 1 2 2v2"/><line x1="10" x2="14" y1="11" y2="17"/><line x1="14" x2="10" y1="11" y2="17"/></svg>`;
       delBtn.addEventListener('click', async () => {
         const confirmed = await showConfirmModal({

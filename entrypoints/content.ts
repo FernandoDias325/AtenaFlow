@@ -1,20 +1,43 @@
 import { defineContentScript } from 'wxt/sandbox';
+import {
+  DISABLED_SITES_KEY,
+  isSiteDisabled,
+  normalizeSiteList
+} from '../src/core/settings/site-access';
+import { extractTemplateVariables, renderTemplateVariables } from '../src/core/templates/variables';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
-  main() {
+  async main() {
     console.log('[AtenaFlow] Content Script carregado.');
 
     let currentFocusedElement: HTMLElement | null = null;
     let iconElement: HTMLElement | null = null;
     let popupElement: HTMLElement | null = null;
-    let positionInterval: number | null = null;
+    let stopPositionTracking: (() => void) | null = null;
+    const storedSites = await chrome.storage.local.get(DISABLED_SITES_KEY);
+    let integrationEnabled = !isSiteDisabled(
+      window.location.hostname,
+      normalizeSiteList(storedSites[DISABLED_SITES_KEY] ?? [])
+    );
+
+    chrome.storage.onChanged.addListener((changes, areaName) => {
+      if (areaName === 'local' && changes[DISABLED_SITES_KEY]) {
+        integrationEnabled = !isSiteDisabled(
+          window.location.hostname,
+          normalizeSiteList(changes[DISABLED_SITES_KEY].newValue ?? [])
+        );
+        if (!integrationEnabled) {
+          cleanupUI();
+        }
+      }
+    });
 
     // Remove ícone e popup se existirem
     function cleanupUI() {
-      if (positionInterval) {
-        clearInterval(positionInterval);
-        positionInterval = null;
+      if (stopPositionTracking) {
+        stopPositionTracking();
+        stopPositionTracking = null;
       }
       if (iconElement) {
         iconElement.remove();
@@ -33,19 +56,20 @@ export default defineContentScript({
       }
 
       const el = currentFocusedElement;
+      const formattedText = text.replace(/\r\n?/g, '\n');
 
       // Se for input ou textarea
       if (el instanceof HTMLInputElement || el instanceof HTMLTextAreaElement) {
         // Tenta usar execCommand primeiro para manter o histórico de "Desfazer" (Ctrl+Z)
         el.focus();
-        const success = document.execCommand('insertText', false, text);
+        const success = document.execCommand('insertText', false, formattedText);
         if (!success) {
           // Fallback para atribuição direta
           const start = el.selectionStart || 0;
           const end = el.selectionEnd || 0;
           const currentValue = el.value;
-          el.value = currentValue.substring(0, start) + text + currentValue.substring(end);
-          el.selectionStart = el.selectionEnd = start + text.length;
+          el.value = currentValue.substring(0, start) + formattedText + currentValue.substring(end);
+          el.selectionStart = el.selectionEnd = start + formattedText.length;
         }
       } else if (el.isContentEditable) {
         el.focus();
@@ -54,15 +78,43 @@ export default defineContentScript({
         // Usar insertHTML com <br> mantém o texto no mesmo container e resolve o problema.
         const escapeHTML = (str: string) =>
           str.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
-        const htmlText = escapeHTML(text).replace(/\n/g, '<br>');
+        const htmlText = escapeHTML(formattedText).replace(/\n/g, '<br>');
 
-        let success = document.execCommand('insertHTML', false, htmlText);
+        const success = document.execCommand('insertHTML', false, htmlText);
         if (!success) {
-          success = document.execCommand('insertText', false, text);
-        }
-        if (!success) {
-          // Fallback
-          el.textContent = (el.textContent || '') + text;
+          // Nunca usar insertText aqui: em editores com display:flex ele pode criar
+          // uma <div> por linha e posicionar os parágrafos lado a lado.
+          const fragment = document.createDocumentFragment();
+          let lastNode: Node | null = null;
+          formattedText.split('\n').forEach((line, index) => {
+            if (index > 0) {
+              lastNode = document.createElement('br');
+              fragment.appendChild(lastNode);
+            }
+            if (line) {
+              lastNode = document.createTextNode(line);
+              fragment.appendChild(lastNode);
+            }
+          });
+
+          const selection = window.getSelection();
+          const selectedRange = selection?.rangeCount ? selection.getRangeAt(0) : null;
+          const range =
+            selectedRange && el.contains(selectedRange.commonAncestorContainer)
+              ? selectedRange
+              : document.createRange();
+          if (!selectedRange || !el.contains(selectedRange.commonAncestorContainer)) {
+            range.selectNodeContents(el);
+            range.collapse(false);
+          }
+          range.deleteContents();
+          range.insertNode(fragment);
+          if (lastNode && selection) {
+            range.setStartAfter(lastNode);
+            range.collapse(true);
+            selection.removeAllRanges();
+            selection.addRange(range);
+          }
         }
       }
 
@@ -77,8 +129,18 @@ export default defineContentScript({
         tracker.setValue((el as HTMLInputElement).value || el.textContent || '');
       }
 
-      // Registra que o script foi usado
-      chrome.runtime.sendMessage({ type: 'INCREMENT_USAGE_COUNT', scriptId });
+      // Registra que o script foi usado e aguarda a persistência antes de fechar o popup.
+      try {
+        const response = await chrome.runtime.sendMessage({
+          type: 'INCREMENT_USAGE_COUNT',
+          scriptId
+        });
+        if (!response?.success) {
+          console.warn('[AtenaFlow] Não foi possível contabilizar o uso do script.');
+        }
+      } catch (error) {
+        console.warn('[AtenaFlow] Falha ao contabilizar o uso do script:', error);
+      }
 
       cleanupUI();
       currentFocusedElement.focus();
@@ -199,6 +261,30 @@ export default defineContentScript({
       chrome.runtime.sendMessage({ type: 'GET_ACTIVE_SCRIPTS' }, (response) => {
         container.innerHTML = ''; // Limpa o loading
 
+        if (chrome.runtime.lastError || !response) {
+          const errorMessage = document.createElement('div');
+          errorMessage.textContent = 'Não foi possível carregar os scripts.';
+          errorMessage.style.padding = '8px';
+          errorMessage.style.fontSize = '12px';
+          errorMessage.style.color = textSecondary;
+
+          const retryButton = document.createElement('button');
+          retryButton.textContent = 'Tentar novamente';
+          retryButton.setAttribute('aria-label', 'Tentar carregar scripts novamente');
+          retryButton.style.cssText = `
+            margin: 0 8px 8px;
+            padding: 6px 8px;
+            border: 1px solid ${borderColor};
+            border-radius: 6px;
+            background: ${inputBg};
+            color: ${textColor};
+            cursor: pointer;
+          `;
+          retryButton.onclick = () => createPopup();
+          container.append(errorMessage, retryButton);
+          return;
+        }
+
         const scripts = response?.scripts || [];
 
         if (scripts.length === 0) {
@@ -271,6 +357,60 @@ export default defineContentScript({
 
         container.appendChild(viewList);
         container.appendChild(viewEdit);
+
+        const prepareInjection = (
+          script: { id: string; title: string; body: string },
+          text: string
+        ) => {
+          const variables = extractTemplateVariables(text);
+          if (variables.length === 0) {
+            void injectText(text, script.id);
+            return;
+          }
+
+          viewList.style.display = 'none';
+          viewEdit.style.display = 'flex';
+          viewEdit.innerHTML = '';
+          const formTitle = document.createElement('div');
+          formTitle.textContent = 'Preencher variáveis';
+          formTitle.style.cssText = `font-size: 12px; font-weight: 600; color: ${textColor}; margin-bottom: 8px;`;
+          viewEdit.appendChild(formTitle);
+
+          const inputs = new Map<string, HTMLInputElement>();
+          for (const variable of variables) {
+            const label = document.createElement('label');
+            label.textContent = variable;
+            label.style.cssText = `font-size: 11px; color: ${textSecondary}; margin: 4px 0 2px;`;
+            const input = document.createElement('input');
+            input.type = 'text';
+            input.placeholder = `Valor para ${variable}`;
+            input.style.cssText = `width:100%;padding:6px 8px;border:1px solid ${borderColor};border-radius:6px;background:${inputBg};color:${textColor};box-sizing:border-box;`;
+            inputs.set(variable, input);
+            viewEdit.append(label, input);
+          }
+
+          const buttons = document.createElement('div');
+          buttons.style.cssText = 'display:flex;justify-content:flex-end;gap:8px;margin-top:10px;';
+          const back = document.createElement('button');
+          back.textContent = 'Voltar';
+          back.style.cssText = `padding:6px 12px;border:1px solid ${borderColor};background:transparent;color:${textColor};border-radius:4px;cursor:pointer;`;
+          back.onclick = () => {
+            viewEdit.style.display = 'none';
+            viewList.style.display = 'block';
+          };
+          const insert = document.createElement('button');
+          insert.textContent = 'Inserir';
+          insert.style.cssText = `padding:6px 14px;border:0;background:${primaryColor};color:#fff;border-radius:4px;cursor:pointer;font-weight:600;`;
+          insert.onclick = () => {
+            const values = Object.fromEntries(
+              [...inputs].map(([name, input]) => [name, input.value])
+            );
+            void injectText(renderTemplateVariables(text, values), script.id);
+          };
+          buttons.append(back, insert);
+          viewEdit.appendChild(buttons);
+          setTimeout(() => inputs.values().next().value?.focus(), 50);
+        };
 
         const showEditModal = (script: { id: string; title: string; body: string }) => {
           viewList.style.display = 'none';
@@ -362,7 +502,7 @@ export default defineContentScript({
           `;
           okBtn.onclick = (e) => {
             e.stopPropagation();
-            injectText(textarea.value, script.id);
+            prepareInjection(script, textarea.value);
           };
 
           btnRow.appendChild(cancelBtn);
@@ -417,7 +557,7 @@ export default defineContentScript({
             titleSpan.onclick = (e) => {
               e.preventDefault();
               e.stopPropagation();
-              injectText(script.body, script.id);
+              prepareInjection(script, script.body);
             };
 
             const editBtn = document.createElement('button');
@@ -530,8 +670,29 @@ export default defineContentScript({
         }
       };
 
+      let animationFrame: number | null = null;
+      const schedulePositionUpdate = () => {
+        if (animationFrame !== null) {
+          return;
+        }
+        animationFrame = requestAnimationFrame(() => {
+          animationFrame = null;
+          updatePosition();
+        });
+      };
+      const resizeObserver = new ResizeObserver(schedulePositionUpdate);
+      resizeObserver.observe(target);
+      window.addEventListener('scroll', schedulePositionUpdate, true);
+      window.addEventListener('resize', schedulePositionUpdate);
+      stopPositionTracking = () => {
+        resizeObserver.disconnect();
+        window.removeEventListener('scroll', schedulePositionUpdate, true);
+        window.removeEventListener('resize', schedulePositionUpdate);
+        if (animationFrame !== null) {
+          cancelAnimationFrame(animationFrame);
+        }
+      };
       updatePosition();
-      positionInterval = window.setInterval(updatePosition, 100);
 
       let startX = 0,
         startY = 0,
@@ -603,6 +764,9 @@ export default defineContentScript({
     document.addEventListener(
       'focusin',
       (e) => {
+        if (!integrationEnabled) {
+          return;
+        }
         const target = e.target as HTMLElement;
         if (!target) {
           return;

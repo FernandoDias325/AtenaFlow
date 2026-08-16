@@ -51,6 +51,7 @@ export interface ScriptListOptions {
   onRefresh: () => void;
   /** Mapa de categoryId → cor CSS para o dot de cada card. */
   categoryColors?: Map<string, string>;
+  searchQuery?: string;
 }
 
 /**
@@ -60,7 +61,7 @@ export interface ScriptListOptions {
 export function createScriptList(options: ScriptListOptions): HTMLElement {
   injectStyles();
 
-  const { scripts, onRefresh, categoryColors } = options;
+  const { scripts, onRefresh, categoryColors, searchQuery } = options;
   const container = document.createElement('div');
   container.className = 'script-list';
 
@@ -83,7 +84,7 @@ export function createScriptList(options: ScriptListOptions): HTMLElement {
   for (const script of scripts) {
     const color =
       script.categoryId && categoryColors ? categoryColors.get(script.categoryId) : undefined;
-    const card = createScriptCard({ script, onRefresh, categoryColor: color });
+    const card = createScriptCard({ script, onRefresh, categoryColor: color, searchQuery });
     cardsWrapper.appendChild(card);
   }
 

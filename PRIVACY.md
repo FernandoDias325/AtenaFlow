@@ -23,6 +23,10 @@ Nós **não coletamos**, não rastreamos, não interceptamos e não compartilham
 
 O AtenaFlow roda inteiramente dentro da máquina do usuário (Client-side). Nenhum código remoto externo (como CDNs, scripts de rastreamento de terceiros ou injeções dinâmicas de código via servidores externos) é carregado. O pacote da extensão é fechado e autossuficiente.
 
+### Integração com campos de texto
+
+Para disponibilizar o botão flutuante de scripts, a extensão executa um componente local nas páginas visitadas. Esse componente identifica quando um campo de texto recebe foco e insere um script somente após uma ação do usuário. O conteúdo digitado na página não é armazenado, transmitido ou analisado pela extensão.
+
 ## 4. Uso de Permissões (Manifest V3)
 
 Solicitamos apenas as permissões estritamente necessárias para o funcionamento dos recursos principais:

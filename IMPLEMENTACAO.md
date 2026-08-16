@@ -28,7 +28,7 @@ Este documento registra o histórico cronológico de todas as implementações r
 - **Resultado dos testes:**
   - **Vitest:** `tests/basic.test.ts` passou com 100% de sucesso (1 test passed).
   - **WXT Build:** Compilação gerou `.output/chrome-mv3/` com sucesso contendo `manifest.json`, `window.html`, `background.js` e chunks Javascript de forma otimizada.
-- **Pendências:** Nenhuma.
+- **Pendências:** O repositório experimental de snapshots internos foi removido posteriormente; o object store legado foi preservado para compatibilidade. O produto utiliza exportação e importação manuais.
 - **Próximos Passos:** Fase 1 (Camada Core e Banco IndexedDB).
 
 ---

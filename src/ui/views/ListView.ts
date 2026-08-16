@@ -16,6 +16,7 @@ import * as ScriptsRepo from '../../core/db/scripts.repository';
 import * as CategoriesRepo from '../../core/db/categories.repository';
 import { filterScripts, sortScripts } from '../../core/search/search-index';
 import type { Script, Category } from '../../core/models/types';
+import { updateScriptCardUsage } from '../components/ScriptCard';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -27,32 +28,40 @@ const STYLES = `
     overflow: hidden;
   }
 
-  .list-view__filter-bar {
+  .list-view__filters {
     display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    overflow-x: auto;
-    overflow-y: hidden;
+    flex-direction: column;
     flex-shrink: 0;
-    scrollbar-width: none;
-    -ms-overflow-style: none;
+    border-bottom: 1px solid var(--color-border);
+    background: var(--color-bg);
   }
 
-  .list-view__filter-bar::-webkit-scrollbar {
-    display: none;
+  .list-view__filters .category-chips {
+    padding-bottom: var(--space-1);
   }
 
   .list-view__meta {
     display: inline-flex;
     align-items: center;
     gap: var(--space-1);
-    margin-left: auto;
+    justify-content: flex-end;
+    padding: 0 var(--space-4) var(--space-2);
     flex-shrink: 0;
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
     white-space: nowrap;
   }
+
+  .list-view__density-btn {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    width: 24px;
+    height: 24px;
+    border-radius: var(--radius-sm);
+    color: var(--color-text-tertiary);
+  }
+  .list-view__density-btn:hover { background: var(--color-bg-tertiary); color: var(--color-text); }
 
   .list-view__meta-sort {
     font-size: var(--font-size-xs);
@@ -99,6 +108,7 @@ let currentQuery = '';
 let currentCategory: string | null = null;
 /** Modo de ordenação. */
 let currentSortMode: 'recent' | 'usage' = 'recent';
+let compactMode = localStorage.getItem('atenaflow-list-density') === 'compact';
 
 /**
  * Cria a view da lista principal.
@@ -108,7 +118,7 @@ export async function createListView(): Promise<HTMLElement> {
   injectStyles();
 
   viewContainer = document.createElement('div');
-  viewContainer.className = 'list-view';
+  viewContainer.className = `list-view${compactMode ? ' list-view--compact' : ''}`;
 
   // Toolbar
   const toolbar = createToolbar();
@@ -136,6 +146,14 @@ export async function createListView(): Promise<HTMLElement> {
  */
 export async function refreshListView(): Promise<void> {
   await loadDataFromDB();
+}
+
+export function updateListUsageCount(scriptId: string, usageCount: number): void {
+  const script = cachedScripts.find((item) => item.id === scriptId);
+  if (script) {
+    script.usageCount = usageCount;
+  }
+  updateScriptCardUsage(scriptId, usageCount);
 }
 
 /** Carrega os dados do IndexedDB para a memória. */
@@ -201,8 +219,8 @@ function renderFilterBarAndList(): void {
   const sortSelect = document.createElement('select');
   sortSelect.className = 'list-view__meta-sort';
   sortSelect.innerHTML = `
-    <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>recentes</option>
-    <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>mais usados</option>
+    <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>Recentes</option>
+    <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>Mais usados</option>
   `;
   sortSelect.addEventListener('change', (e) => {
     currentSortMode = (e.target as HTMLSelectElement).value as 'recent' | 'usage';
@@ -210,8 +228,26 @@ function renderFilterBarAndList(): void {
   });
   meta.appendChild(sortSelect);
 
-  chipBar.appendChild(meta);
-  filterBarContainer = chipBar;
+  const densityBtn = document.createElement('button');
+  densityBtn.className = 'list-view__density-btn';
+  densityBtn.type = 'button';
+  densityBtn.title = compactMode ? 'Visualização confortável' : 'Visualização compacta';
+  densityBtn.setAttribute('aria-label', densityBtn.title);
+  densityBtn.innerHTML = compactMode
+    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/></svg>'
+    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
+  densityBtn.addEventListener('click', () => {
+    compactMode = !compactMode;
+    localStorage.setItem('atenaflow-list-density', compactMode ? 'compact' : 'comfortable');
+    viewContainer?.classList.toggle('list-view--compact', compactMode);
+    renderFilterBarAndList();
+  });
+  meta.appendChild(densityBtn);
+
+  const filters = document.createElement('div');
+  filters.className = 'list-view__filters';
+  filters.append(chipBar, meta);
+  filterBarContainer = filters;
   viewContainer.appendChild(filterBarContainer);
 
   // ─── Lista de scripts ─────────────────────────────────────────────
@@ -221,7 +257,8 @@ function renderFilterBarAndList(): void {
     onRefresh: () => {
       refreshListView();
     },
-    categoryColors: categoryColorMap
+    categoryColors: categoryColorMap,
+    searchQuery: currentQuery
   });
 
   viewContainer.appendChild(listContainer);

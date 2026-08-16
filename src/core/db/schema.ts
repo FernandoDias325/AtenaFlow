@@ -100,7 +100,7 @@ export async function getDB(): Promise<IDBPDatabase<ScriptDeskDB>> {
         const historyStore = db.createObjectStore('copyHistory', { keyPath: 'id' });
         historyStore.createIndex('by-copiedAt', 'copiedAt');
 
-        // Object Store: backups
+        // Object store legado. Não remover: instalações antigas podem tê-lo populado.
         const backupsStore = db.createObjectStore('backups', { keyPath: 'id' });
         backupsStore.createIndex('by-createdAt', 'createdAt');
       }
