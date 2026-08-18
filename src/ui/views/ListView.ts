@@ -10,13 +10,19 @@
 
 import { createToolbar } from '../components/Toolbar';
 import { createSearchBar } from '../components/SearchBar';
-import { createCategoryFilter, categoryColorMap } from '../components/CategoryFilter';
+import {
+  createCategoryFilter,
+  categoryColorMap,
+  UNCATEGORIZED_CATEGORY_ID
+} from '../components/CategoryFilter';
 import { createScriptList } from '../components/ScriptList';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import * as CategoriesRepo from '../../core/db/categories.repository';
 import { filterScripts, sortScripts } from '../../core/search/search-index';
 import type { Script, Category } from '../../core/models/types';
 import { updateScriptCardUsage } from '../components/ScriptCard';
+import { showConfirmModal } from '../components/ConfirmModal';
+import { isUncategorized } from '../../core/categories/uncategorized-order';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -50,7 +56,16 @@ const STYLES = `
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
     white-space: nowrap;
+    box-sizing: border-box;
   }
+
+  .list-view__meta--selection {
+    display: grid;
+    grid-template-columns: auto auto minmax(90px, 1fr) auto;
+    width: 100%;
+    justify-content: stretch;
+  }
+  .list-view__meta--selection .list-view__meta-sort { width: 100%; min-width: 0; }
 
   .list-view__density-btn {
     display: inline-flex;
@@ -74,6 +89,17 @@ const STYLES = `
     cursor: pointer;
     font-family: var(--font-ui);
   }
+
+  .list-view__bulk-btn {
+    padding: 3px 7px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-sm);
+    color: var(--color-text-secondary);
+    background: var(--color-bg-secondary);
+    font-size: var(--font-size-xs);
+  }
+  .list-view__bulk-btn:disabled { opacity: .45; cursor: default; }
+  .list-view__bulk-btn--danger { color: var(--color-error); }
 `;
 
 // ─── Injeção de estilos ──────────────────────────────────────────────────────
@@ -109,6 +135,8 @@ let currentCategory: string | null = null;
 /** Modo de ordenação. */
 let currentSortMode: 'recent' | 'usage' = 'recent';
 let compactMode = localStorage.getItem('atenaflow-list-density') === 'compact';
+let selectionMode = false;
+const selectedScriptIds = new Set<string>();
 
 /**
  * Cria a view da lista principal.
@@ -186,7 +214,10 @@ function renderFilterBarAndList(): void {
 
   // ─── Filtragem e ordenação ────────────────────────────────────────
   let filtered = cachedScripts;
-  if (currentCategory) {
+  if (currentCategory === UNCATEGORIZED_CATEGORY_ID) {
+    const validCategoryIds = new Set(cachedCategories.map((category) => category.id));
+    filtered = filtered.filter((script) => isUncategorized(script.categoryId, validCategoryIds));
+  } else if (currentCategory) {
     filtered = filtered.filter((s) => s.categoryId === currentCategory);
   }
   filtered = filterScripts(filtered, currentQuery);
@@ -206,43 +237,118 @@ function renderFilterBarAndList(): void {
 
   // Adiciona metadados (contagem + ordenação) ao final da barra de chips
   const meta = document.createElement('span');
-  meta.className = 'list-view__meta';
+  meta.className = `list-view__meta${selectionMode ? ' list-view__meta--selection' : ''}`;
 
   const countText = document.createElement('span');
   countText.textContent = `${sorted.length} script${sorted.length !== 1 ? 's' : ''}`;
-  meta.appendChild(countText);
+  if (!selectionMode) {
+    meta.appendChild(countText);
+  }
 
-  const dot = document.createElement('span');
-  dot.textContent = '·';
-  meta.appendChild(dot);
-
-  const sortSelect = document.createElement('select');
-  sortSelect.className = 'list-view__meta-sort';
-  sortSelect.innerHTML = `
-    <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>Recentes</option>
-    <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>Mais usados</option>
-  `;
-  sortSelect.addEventListener('change', (e) => {
-    currentSortMode = (e.target as HTMLSelectElement).value as 'recent' | 'usage';
+  const selectModeBtn = document.createElement('button');
+  selectModeBtn.className = 'list-view__bulk-btn';
+  selectModeBtn.textContent = selectionMode ? 'Cancelar' : 'Selecionar';
+  selectModeBtn.addEventListener('click', () => {
+    selectionMode = !selectionMode;
+    selectedScriptIds.clear();
     renderFilterBarAndList();
   });
-  meta.appendChild(sortSelect);
+  meta.appendChild(selectModeBtn);
 
-  const densityBtn = document.createElement('button');
-  densityBtn.className = 'list-view__density-btn';
-  densityBtn.type = 'button';
-  densityBtn.title = compactMode ? 'Visualização confortável' : 'Visualização compacta';
-  densityBtn.setAttribute('aria-label', densityBtn.title);
-  densityBtn.innerHTML = compactMode
-    ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/></svg>'
-    : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
-  densityBtn.addEventListener('click', () => {
-    compactMode = !compactMode;
-    localStorage.setItem('atenaflow-list-density', compactMode ? 'compact' : 'comfortable');
-    viewContainer?.classList.toggle('list-view--compact', compactMode);
-    renderFilterBarAndList();
-  });
-  meta.appendChild(densityBtn);
+  if (selectionMode) {
+    const selectAllBtn = document.createElement('button');
+    selectAllBtn.className = 'list-view__bulk-btn';
+    selectAllBtn.textContent = selectedScriptIds.size === sorted.length ? 'Desmarcar' : 'Todos';
+    selectAllBtn.addEventListener('click', () => {
+      if (selectedScriptIds.size === sorted.length) {
+        selectedScriptIds.clear();
+      } else {
+        sorted.forEach((script) => selectedScriptIds.add(script.id));
+      }
+      renderFilterBarAndList();
+    });
+    meta.appendChild(selectAllBtn);
+
+    const moveSelect = document.createElement('select');
+    moveSelect.className = 'list-view__meta-sort';
+    moveSelect.disabled = selectedScriptIds.size === 0;
+    moveSelect.innerHTML =
+      '<option value="">Mover para…</option><option value="__none__">Sem categoria</option>';
+    for (const category of cachedCategories) {
+      const option = document.createElement('option');
+      option.value = category.id;
+      option.textContent = category.name;
+      moveSelect.appendChild(option);
+    }
+    moveSelect.addEventListener('change', async () => {
+      if (!moveSelect.value) {
+        return;
+      }
+      const categoryId = moveSelect.value === '__none__' ? null : moveSelect.value;
+      await Promise.all(
+        [...selectedScriptIds].map((id) => ScriptsRepo.updateScript(id, { categoryId }))
+      );
+      selectedScriptIds.clear();
+      selectionMode = false;
+      await loadDataFromDB();
+    });
+    meta.appendChild(moveSelect);
+
+    const deleteSelectedBtn = document.createElement('button');
+    deleteSelectedBtn.className = 'list-view__bulk-btn list-view__bulk-btn--danger';
+    deleteSelectedBtn.textContent = `Excluir (${selectedScriptIds.size})`;
+    deleteSelectedBtn.disabled = selectedScriptIds.size === 0;
+    deleteSelectedBtn.addEventListener('click', async () => {
+      const confirmed = await showConfirmModal({
+        title: 'Excluir scripts selecionados',
+        message: `${selectedScriptIds.size} script(s) serão enviados para a lixeira.`,
+        confirmLabel: 'Excluir',
+        cancelLabel: 'Cancelar'
+      });
+      if (!confirmed) {
+        return;
+      }
+      await Promise.all([...selectedScriptIds].map((id) => ScriptsRepo.softDeleteScript(id)));
+      selectedScriptIds.clear();
+      selectionMode = false;
+      await loadDataFromDB();
+    });
+    meta.appendChild(deleteSelectedBtn);
+  }
+
+  if (!selectionMode) {
+    const dot = document.createElement('span');
+    dot.textContent = '·';
+    meta.appendChild(dot);
+
+    const sortSelect = document.createElement('select');
+    sortSelect.className = 'list-view__meta-sort';
+    sortSelect.innerHTML = `
+      <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>Recentes</option>
+      <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>Mais usados</option>
+    `;
+    sortSelect.addEventListener('change', (e) => {
+      currentSortMode = (e.target as HTMLSelectElement).value as 'recent' | 'usage';
+      renderFilterBarAndList();
+    });
+    meta.appendChild(sortSelect);
+
+    const densityBtn = document.createElement('button');
+    densityBtn.className = 'list-view__density-btn';
+    densityBtn.type = 'button';
+    densityBtn.title = compactMode ? 'Visualização confortável' : 'Visualização compacta';
+    densityBtn.setAttribute('aria-label', densityBtn.title);
+    densityBtn.innerHTML = compactMode
+      ? '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><rect x="3" y="3" width="18" height="7" rx="2"/><rect x="3" y="14" width="18" height="7" rx="2"/></svg>'
+      : '<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2"><path d="M4 6h16M4 12h16M4 18h16"/></svg>';
+    densityBtn.addEventListener('click', () => {
+      compactMode = !compactMode;
+      localStorage.setItem('atenaflow-list-density', compactMode ? 'compact' : 'comfortable');
+      viewContainer?.classList.toggle('list-view--compact', compactMode);
+      renderFilterBarAndList();
+    });
+    meta.appendChild(densityBtn);
+  }
 
   const filters = document.createElement('div');
   filters.className = 'list-view__filters';
@@ -258,7 +364,17 @@ function renderFilterBarAndList(): void {
       refreshListView();
     },
     categoryColors: categoryColorMap,
-    searchQuery: currentQuery
+    searchQuery: currentQuery,
+    selectionMode,
+    selectedIds: selectedScriptIds,
+    onSelectionChange: (scriptId, selected) => {
+      if (selected) {
+        selectedScriptIds.add(scriptId);
+      } else {
+        selectedScriptIds.delete(scriptId);
+      }
+      renderFilterBarAndList();
+    }
   });
 
   viewContainer.appendChild(listContainer);

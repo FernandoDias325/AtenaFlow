@@ -7,8 +7,16 @@
  */
 
 import { emit } from '../../store/app-store';
-import { exportBackup, importBackup } from '../../core/backup/backup.service';
+import {
+  analyzeImportDuplicates,
+  exportBackup,
+  getPreImportSnapshotDate,
+  importBackup,
+  restorePreImportSnapshot
+} from '../../core/backup/backup.service';
 import { DISABLED_SITES_KEY, normalizeSiteList } from '../../core/settings/site-access';
+import { showDuplicateReviewModal } from '../components/DuplicateReviewModal';
+import { showConfirmModal } from '../components/ConfirmModal';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -202,6 +210,12 @@ const STYLES = `
   }
   .settings-data-row .settings-section__actions { flex-shrink: 0; }
   .settings-data-row .settings-btn { padding: var(--space-2) var(--space-3); }
+  .settings-data-row--stacked { flex-direction: column; align-items: stretch; }
+  .settings-data-row--stacked .settings-section__actions { width: 100%; flex-wrap: wrap; }
+  .settings-data-row--stacked .settings-btn { flex: 1 1 120px; justify-content: center; min-width: 0; }
+  .settings-data-row--stacked .settings-btn--restore { flex-basis: 100%; }
+  .settings-help-actions { flex-wrap: wrap; }
+  .settings-help-actions .settings-btn { flex: 1 1 130px; justify-content: center; }
 `;
 
 // ─── Injeção de estilos ──────────────────────────────────────────────────────
@@ -496,7 +510,7 @@ export async function createSettingsView(): Promise<HTMLElement> {
   const backupDesc = document.createElement('p');
   backupDesc.className = 'settings-section__desc';
   backupDesc.textContent =
-    'Exporte seus scripts, links e categorias para um arquivo seguro, ou importe de um arquivo existente. A importação irá mesclar os dados, preservando os itens que você já possui.';
+    'Exporte scripts, links, categorias, bloco de notas e preferências. Antes de importar, a extensão salva automaticamente o estado atual para permitir desfazer a alteração.';
   backupSection.appendChild(backupDesc);
 
   const actionsContainer = document.createElement('div');
@@ -536,7 +550,15 @@ export async function createSettingsView(): Promise<HTMLElement> {
       }
 
       try {
-        await importBackup(result);
+        const duplicates = await analyzeImportDuplicates(result);
+        const duplicateDecisions = duplicates.length
+          ? await showDuplicateReviewModal(duplicates)
+          : {};
+        if (duplicateDecisions === null) {
+          importInput.value = '';
+          return;
+        }
+        await importBackup(result, { duplicateDecisions });
         emit('toast', { message: 'Backup importado com sucesso!', type: 'success' });
         // Reseta o input para permitir importar o mesmo arquivo
         importInput.value = '';
@@ -557,6 +579,34 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
   actionsContainer.appendChild(exportBtn);
   actionsContainer.appendChild(importBtn);
+
+  const snapshotDate = await getPreImportSnapshotDate();
+  const restoreBtn = document.createElement('button');
+  restoreBtn.className = 'settings-btn settings-btn--outline';
+  restoreBtn.classList.add('settings-btn--restore');
+  restoreBtn.textContent = 'Desfazer última importação';
+  restoreBtn.disabled = snapshotDate === null;
+  restoreBtn.title = snapshotDate
+    ? `Estado salvo em ${new Date(snapshotDate).toLocaleString('pt-BR')}`
+    : 'Nenhuma importação anterior para desfazer';
+  restoreBtn.addEventListener('click', async () => {
+    const confirmed = await showConfirmModal({
+      title: 'Desfazer última importação',
+      message:
+        'Scripts, links, categorias, bloco de notas e preferências voltarão ao estado anterior à última importação.',
+      confirmLabel: 'Restaurar',
+      cancelLabel: 'Cancelar'
+    });
+    if (!confirmed) {
+      return;
+    }
+    const restored = await restorePreImportSnapshot();
+    emit('toast', {
+      message: restored ? 'Estado anterior restaurado' : 'Backup de segurança não encontrado',
+      type: restored ? 'success' : 'error'
+    });
+  });
+  actionsContainer.appendChild(restoreBtn);
   actionsContainer.appendChild(importInput);
   backupSection.appendChild(actionsContainer);
 
@@ -580,11 +630,11 @@ export async function createSettingsView(): Promise<HTMLElement> {
   trashCopy.append(trashTitle, trashDesc);
   trashSection.replaceChildren(trashCopy, trashActions);
 
-  backupSection.className = 'settings-data-row';
+  backupSection.className = 'settings-data-row settings-data-row--stacked';
   backupTitle.className = 'settings-data-row__title';
   backupTitle.textContent = 'Backup';
   backupDesc.className = 'settings-data-row__desc';
-  backupDesc.textContent = 'Exporte ou importe scripts, links e categorias.';
+  backupDesc.textContent = 'Backup completo com proteção antes de cada importação.';
   const backupCopy = document.createElement('div');
   backupCopy.className = 'settings-data-row__copy';
   backupCopy.append(backupTitle, backupDesc);
@@ -592,6 +642,29 @@ export async function createSettingsView(): Promise<HTMLElement> {
 
   dataSection.append(trashSection, backupSection);
   content.appendChild(dataSection);
+
+  const helpSection = document.createElement('section');
+  helpSection.className = 'settings-section';
+  const helpTitle = document.createElement('h3');
+  helpTitle.className = 'settings-section__title';
+  helpTitle.textContent = 'Ajuda e informações';
+  const helpDesc = document.createElement('p');
+  helpDesc.className = 'settings-section__desc';
+  helpDesc.textContent =
+    'Consulte o guia completo de todas as funcionalidades da extensão e soluções para dúvidas comuns.';
+  const openManualBtn = document.createElement('button');
+  openManualBtn.className = 'settings-btn settings-btn--primary';
+  openManualBtn.textContent = 'Abrir manual de uso';
+  openManualBtn.addEventListener('click', () => emit('view-changed', { view: 'manual' }));
+  const releaseNotesBtn = document.createElement('button');
+  releaseNotesBtn.className = 'settings-btn settings-btn--outline';
+  releaseNotesBtn.textContent = 'Novidades da versão';
+  releaseNotesBtn.addEventListener('click', () => emit('view-changed', { view: 'release-notes' }));
+  const helpActions = document.createElement('div');
+  helpActions.className = 'settings-section__actions settings-help-actions';
+  helpActions.append(openManualBtn, releaseNotesBtn);
+  helpSection.append(helpTitle, helpDesc, helpActions);
+  content.appendChild(helpSection);
   container.appendChild(content);
 
   return container;

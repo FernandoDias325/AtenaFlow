@@ -69,6 +69,22 @@ const STYLES = `
     transform: translateY(-1px);
   }
 
+  .links-view__select-btn {
+    padding: 6px 8px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    color: var(--color-text-secondary);
+    font-size: var(--font-size-xs);
+  }
+  .links-view__select-btn--danger { color: var(--color-error); }
+  .links-view__select-btn:disabled { opacity: .45; }
+
+  .link-item__select { width: 16px; height: 16px; min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px; aspect-ratio: 1 / 1; padding: 0; box-sizing: border-box; margin-right: 9px; appearance: none; border: 1.5px solid var(--color-border-hover); border-radius: 4px; background: var(--color-bg-secondary); display: grid; place-content: center; cursor: pointer; flex-shrink: 0; }
+  .link-item__select::before { content: ''; width: 8px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) scale(0); transition: transform var(--transition-fast); }
+  .link-item__select:checked { border-color: transparent; background: var(--bg-primary, var(--color-primary)); }
+  .link-item__select:checked::before { transform: rotate(-45deg) scale(1); }
+  .link-item__select:hover { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-soft); }
+
   .links-view__content {
     flex: 1;
     padding: var(--space-3) var(--space-4);
@@ -266,6 +282,19 @@ export async function createLinksView(): Promise<HTMLElement> {
   addBtn.addEventListener('click', () => showModal());
   header.appendChild(addBtn);
 
+  let selectionMode = false;
+  const selectedLinkIds = new Set<string>();
+
+  const selectBtn = document.createElement('button');
+  selectBtn.className = 'links-view__select-btn';
+  selectBtn.textContent = 'Selecionar';
+  header.appendChild(selectBtn);
+
+  const deleteSelectedBtn = document.createElement('button');
+  deleteSelectedBtn.className = 'links-view__select-btn links-view__select-btn--danger';
+  deleteSelectedBtn.style.display = 'none';
+  header.appendChild(deleteSelectedBtn);
+
   container.appendChild(header);
 
   let currentQuery = '';
@@ -286,6 +315,38 @@ export async function createLinksView(): Promise<HTMLElement> {
   container.appendChild(content);
 
   let allLinks: Link[] = [];
+
+  const updateSelectionHeader = () => {
+    selectBtn.textContent = selectionMode ? 'Cancelar' : 'Selecionar';
+    addBtn.style.display = selectionMode ? 'none' : '';
+    deleteSelectedBtn.style.display = selectionMode ? '' : 'none';
+    deleteSelectedBtn.textContent = `Excluir (${selectedLinkIds.size})`;
+    deleteSelectedBtn.disabled = selectedLinkIds.size === 0;
+  };
+
+  selectBtn.addEventListener('click', () => {
+    selectionMode = !selectionMode;
+    selectedLinkIds.clear();
+    updateSelectionHeader();
+    void renderLinks();
+  });
+
+  deleteSelectedBtn.addEventListener('click', async () => {
+    const confirmed = await showConfirmModal({
+      title: 'Excluir links selecionados',
+      message: `${selectedLinkIds.size} link(s) serão enviados para a lixeira.`,
+      confirmLabel: 'Excluir',
+      cancelLabel: 'Cancelar'
+    });
+    if (!confirmed) {
+      return;
+    }
+    await Promise.all([...selectedLinkIds].map((id) => LinksRepo.deleteLink(id)));
+    selectedLinkIds.clear();
+    selectionMode = false;
+    updateSelectionHeader();
+    await renderLinks();
+  });
 
   const renderLinks = async () => {
     content.innerHTML = '';
@@ -325,6 +386,24 @@ export async function createLinksView(): Promise<HTMLElement> {
       const item = document.createElement('div');
       item.className = 'link-item';
 
+      if (selectionMode) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'link-item__select';
+        checkbox.checked = selectedLinkIds.has(link.id);
+        checkbox.setAttribute('aria-label', `Selecionar ${link.title}`);
+        checkbox.addEventListener('click', (event) => event.stopPropagation());
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            selectedLinkIds.add(link.id);
+          } else {
+            selectedLinkIds.delete(link.id);
+          }
+          updateSelectionHeader();
+        });
+        item.appendChild(checkbox);
+      }
+
       const info = document.createElement('div');
       info.className = 'link-item__info';
 
@@ -341,7 +420,14 @@ export async function createLinksView(): Promise<HTMLElement> {
       const usageEl = document.createElement('span');
       usageEl.className = 'link-item__usage';
       const updateUsageLabel = (count: number) => {
-        usageEl.textContent = `${count} ${count === 1 ? 'acesso' : 'acessos'}`;
+        usageEl.textContent = `${count} ${count === 1 ? 'uso' : 'usos'}`;
+      };
+      const recordUsage = async () => {
+        const count = await LinksRepo.incrementUsageCount(link.id);
+        if (count !== undefined) {
+          link.usageCount = count;
+          updateUsageLabel(count);
+        }
       };
       updateUsageLabel(link.usageCount ?? 0);
       info.appendChild(usageEl);
@@ -349,15 +435,20 @@ export async function createLinksView(): Promise<HTMLElement> {
       item.appendChild(info);
 
       item.addEventListener('click', () => {
+        if (selectionMode) {
+          if (selectedLinkIds.has(link.id)) {
+            selectedLinkIds.delete(link.id);
+          } else {
+            selectedLinkIds.add(link.id);
+          }
+          updateSelectionHeader();
+          void renderLinks();
+          return;
+        }
         const finalUrl = normalizeHttpUrl(link.url);
         if (finalUrl) {
           window.open(finalUrl, '_blank', 'noopener,noreferrer');
-          void LinksRepo.incrementUsageCount(link.id).then((count) => {
-            if (count !== undefined) {
-              link.usageCount = count;
-              updateUsageLabel(count);
-            }
-          });
+          void recordUsage();
         }
       });
 
@@ -378,6 +469,7 @@ export async function createLinksView(): Promise<HTMLElement> {
         }
         try {
           await navigator.clipboard.writeText(url);
+          await recordUsage();
           emit('toast', { message: 'Link copiado!', type: 'success' });
         } catch {
           emit('toast', { message: 'Não foi possível copiar o link', type: 'error' });
@@ -417,7 +509,9 @@ export async function createLinksView(): Promise<HTMLElement> {
       });
       actions.appendChild(delBtn);
 
-      item.appendChild(actions);
+      if (!selectionMode) {
+        item.appendChild(actions);
+      }
       content.appendChild(item);
     });
   };
@@ -517,5 +611,6 @@ export async function createLinksView(): Promise<HTMLElement> {
   };
 
   await renderLinks();
+  updateSelectionHeader();
   return container;
 }

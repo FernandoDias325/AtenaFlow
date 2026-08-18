@@ -73,6 +73,15 @@ const STYLES = `
     color: var(--color-bg);
   }
 
+  .trash-view__select-btn { padding: var(--space-1) var(--space-2); border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text-secondary); font-size: var(--font-size-xs); }
+  .trash-view__select-btn--restore { color: var(--color-primary); }
+  .trash-view__select-btn:disabled { opacity: .45; }
+  .trash-item__select { width: 16px; height: 16px; min-width: 16px; max-width: 16px; min-height: 16px; max-height: 16px; aspect-ratio: 1 / 1; padding: 0; box-sizing: border-box; appearance: none; border: 1.5px solid var(--color-border-hover); border-radius: 4px; background: var(--color-bg-secondary); display: grid; place-content: center; cursor: pointer; flex-shrink: 0; }
+  .trash-item__select::before { content: ''; width: 8px; height: 4px; border-left: 2px solid #fff; border-bottom: 2px solid #fff; transform: rotate(-45deg) scale(0); transition: transform var(--transition-fast); }
+  .trash-item__select:checked { border-color: transparent; background: var(--bg-primary, var(--color-primary)); }
+  .trash-item__select:checked::before { transform: rotate(-45deg) scale(1); }
+  .trash-item__select:hover { border-color: var(--color-primary); box-shadow: 0 0 0 3px var(--color-primary-soft); }
+
   .trash-view__content {
     flex: 1;
     overflow-y: auto;
@@ -210,6 +219,18 @@ export async function createTrashView(): Promise<HTMLElement> {
   title.textContent = 'Lixeira';
   header.appendChild(title);
 
+  let selectionMode = false;
+  const selectedItems = new Set<string>();
+  const selectBtn = document.createElement('button');
+  selectBtn.className = 'trash-view__select-btn';
+  selectBtn.textContent = 'Selecionar';
+  header.appendChild(selectBtn);
+
+  const restoreSelectedBtn = document.createElement('button');
+  restoreSelectedBtn.className = 'trash-view__select-btn trash-view__select-btn--restore';
+  restoreSelectedBtn.style.display = 'none';
+  header.appendChild(restoreSelectedBtn);
+
   const emptyAllBtn = document.createElement('button');
   emptyAllBtn.className = 'trash-view__empty-btn';
   emptyAllBtn.textContent = 'Esvaziar';
@@ -231,6 +252,39 @@ export async function createTrashView(): Promise<HTMLElement> {
 
   let deletedItems: TrashItem[] = [];
 
+  const itemKey = (type: TrashItem['type'], id: string) => `${type}:${id}`;
+  const updateSelectionHeader = () => {
+    selectBtn.textContent = selectionMode ? 'Cancelar' : 'Selecionar';
+    restoreSelectedBtn.style.display = selectionMode ? '' : 'none';
+    restoreSelectedBtn.textContent = `Restaurar (${selectedItems.size})`;
+    restoreSelectedBtn.disabled = selectedItems.size === 0;
+    emptyAllBtn.style.display = selectionMode ? 'none' : deletedItems.length ? 'block' : 'none';
+  };
+
+  selectBtn.addEventListener('click', () => {
+    selectionMode = !selectionMode;
+    selectedItems.clear();
+    updateSelectionHeader();
+    void renderList();
+  });
+
+  restoreSelectedBtn.addEventListener('click', async () => {
+    for (const trashObj of deletedItems) {
+      if (!selectedItems.has(itemKey(trashObj.type, trashObj.item.id))) {
+        continue;
+      }
+      if (trashObj.type === 'script') {
+        await ScriptsRepo.restoreScript(trashObj.item.id);
+      } else {
+        await LinksRepo.restoreLink(trashObj.item.id);
+      }
+    }
+    emit('toast', { message: `${selectedItems.size} item(ns) restaurado(s)`, type: 'success' });
+    selectedItems.clear();
+    selectionMode = false;
+    await renderList();
+  });
+
   async function renderList() {
     content.innerHTML = '';
     const deletedScripts = await ScriptsRepo.getAllDeletedScripts();
@@ -247,6 +301,7 @@ export async function createTrashView(): Promise<HTMLElement> {
 
     // Ordena pelo momento de exclusão (mais recentes primeiro)
     deletedItems.sort((a, b) => b.deletedAt - a.deletedAt);
+    updateSelectionHeader();
 
     if (deletedItems.length === 0) {
       emptyAllBtn.style.display = 'none';
@@ -264,6 +319,24 @@ export async function createTrashView(): Promise<HTMLElement> {
 
       const itemEl = document.createElement('div');
       itemEl.className = 'trash-item';
+
+      if (selectionMode) {
+        const checkbox = document.createElement('input');
+        checkbox.type = 'checkbox';
+        checkbox.className = 'trash-item__select';
+        const key = itemKey(type, item.id);
+        checkbox.checked = selectedItems.has(key);
+        checkbox.setAttribute('aria-label', `Selecionar ${item.title}`);
+        checkbox.addEventListener('change', () => {
+          if (checkbox.checked) {
+            selectedItems.add(key);
+          } else {
+            selectedItems.delete(key);
+          }
+          updateSelectionHeader();
+        });
+        itemEl.appendChild(checkbox);
+      }
 
       const infoEl = document.createElement('div');
       infoEl.className = 'trash-item__info';
@@ -339,10 +412,13 @@ export async function createTrashView(): Promise<HTMLElement> {
 
       actionsEl.appendChild(restoreBtn);
       actionsEl.appendChild(delBtn);
-      itemEl.appendChild(actionsEl);
+      if (!selectionMode) {
+        itemEl.appendChild(actionsEl);
+      }
 
       content.appendChild(itemEl);
     }
+    updateSelectionHeader();
   }
 
   emptyAllBtn.addEventListener('click', async () => {

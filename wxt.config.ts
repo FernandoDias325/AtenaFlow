@@ -7,8 +7,8 @@ export default defineConfig({
     short_name: 'AtenaFlow',
     description:
       'Seu segundo cérebro de scripts de atendimento. Cadastre, busque e copie em segundos.',
-    version: '1.4.0',
-    permissions: ['storage', 'unlimitedStorage'],
+    version: '1.6.0',
+    permissions: ['storage', 'unlimitedStorage', 'alarms'],
     icons: {
       '128': 'icon.png'
     },

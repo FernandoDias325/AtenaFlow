@@ -11,6 +11,12 @@ import * as CategoriesRepo from '../../core/db/categories.repository';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import type { Category } from '../../core/models/types';
 import { showConfirmModal } from '../components/ConfirmModal';
+import { UNCATEGORIZED_CATEGORY_ID, UNCATEGORIZED_ORDER_KEY } from '../components/CategoryFilter';
+import {
+  buildCategoryOrder,
+  isUncategorized,
+  moveCategoryOrder
+} from '../../core/categories/uncategorized-order';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -194,6 +200,8 @@ const STYLES = `
     border-radius: var(--radius-sm);
     outline: none;
   }
+
+  .cat-item--uncategorized { border-style: dashed; }
 `;
 
 // ─── Injeção de estilos ──────────────────────────────────────────────────────
@@ -312,6 +320,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
   // ─── Lógica da Lista ───────────────────────────────────────────────
 
   let categories: Category[] = [];
+  let orderedCategoryIds: string[] = [];
 
   async function renderList() {
     listContainer.innerHTML = '';
@@ -330,47 +339,54 @@ export async function createCategoriesView(): Promise<HTMLElement> {
       }
     });
 
-    if (categories.length === 0) {
-      const empty = document.createElement('div');
-      empty.style.cssText = `
-        display: flex;
-        flex-direction: column;
-        align-items: center;
-        justify-content: center;
-        text-align: center;
-        padding: var(--space-12) var(--space-6);
-        gap: var(--space-3);
-      `;
+    const savedPosition = Number.parseInt(localStorage.getItem(UNCATEGORIZED_ORDER_KEY) ?? '0', 10);
+    orderedCategoryIds = buildCategoryOrder(
+      categories.map((category) => category.id),
+      savedPosition
+    );
 
-      const iconEl = document.createElement('div');
-      iconEl.style.color = 'var(--color-text-tertiary)';
-      iconEl.innerHTML = `<svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" style="opacity: 0.4"><path d="M10 13a5 5 0 0 0 7.54.54l3-3a5 5 0 0 0-7.07-7.07l-1.72 1.71"/><path d="M14 11a5 5 0 0 0-7.54-.54l-3 3a5 5 0 0 0 7.07 7.07l1.71-1.71"/></svg>`;
-      empty.appendChild(iconEl);
+    orderedCategoryIds.forEach((categoryId, index) => {
+      if (categoryId === UNCATEGORIZED_CATEGORY_ID) {
+        const itemEl = document.createElement('div');
+        itemEl.className = 'cat-item cat-item--uncategorized';
+        const dotEl = document.createElement('span');
+        dotEl.className = 'cat-item__dot';
+        dotEl.style.backgroundColor = 'var(--color-text-tertiary)';
+        dotEl.style.color = 'var(--color-text-tertiary)';
+        const nameEl = document.createElement('span');
+        nameEl.className = 'cat-item__name';
+        nameEl.textContent = 'Sem categoria';
+        const validCategoryIds = new Set(categories.map((category) => category.id));
+        const count = activeScripts.filter((script) =>
+          isUncategorized(script.categoryId, validCategoryIds)
+        ).length;
+        const countEl = document.createElement('span');
+        countEl.className = 'cat-item__count';
+        countEl.textContent = `${count} ${count === 1 ? 'script' : 'scripts'}`;
+        const actionsEl = document.createElement('div');
+        actionsEl.className = 'cat-item__actions';
+        const upBtn = document.createElement('button');
+        upBtn.className = 'cat-item__btn';
+        upBtn.disabled = index === 0;
+        upBtn.title = 'Mover para cima';
+        upBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
+        upBtn.addEventListener('click', () => handleReorder(index, index - 1));
+        const downBtn = document.createElement('button');
+        downBtn.className = 'cat-item__btn';
+        downBtn.disabled = index === orderedCategoryIds.length - 1;
+        downBtn.title = 'Mover para baixo';
+        downBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
+        downBtn.addEventListener('click', () => handleReorder(index, index + 1));
+        actionsEl.append(upBtn, downBtn);
+        itemEl.append(dotEl, nameEl, countEl, actionsEl);
+        listContainer.appendChild(itemEl);
+        return;
+      }
 
-      const titleEl = document.createElement('div');
-      titleEl.style.cssText = `
-        font-size: var(--font-size-md);
-        font-weight: var(--font-weight-semibold);
-        color: var(--color-text);
-      `;
-      titleEl.textContent = 'Nenhuma categoria ainda';
-      empty.appendChild(titleEl);
-
-      const descEl = document.createElement('div');
-      descEl.style.cssText = `
-        font-size: var(--font-size-sm);
-        color: var(--color-text-secondary);
-        max-width: 240px;
-        line-height: var(--line-height-base);
-      `;
-      descEl.textContent = 'Use o campo acima para criar sua primeira categoria.';
-      empty.appendChild(descEl);
-
-      listContainer.appendChild(empty);
-      return;
-    }
-
-    categories.forEach((cat, index) => {
+      const cat = categories.find((category) => category.id === categoryId);
+      if (!cat) {
+        return;
+      }
       const itemEl = document.createElement('div');
       itemEl.className = 'cat-item';
 
@@ -404,7 +420,7 @@ export async function createCategoriesView(): Promise<HTMLElement> {
 
       const downBtn = document.createElement('button');
       downBtn.className = 'cat-item__btn';
-      downBtn.disabled = index === categories.length - 1;
+      downBtn.disabled = index === orderedCategoryIds.length - 1;
       downBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`;
       downBtn.addEventListener('click', async () => {
         await handleReorder(index, index + 1);
@@ -507,6 +523,10 @@ export async function createCategoriesView(): Promise<HTMLElement> {
         });
 
         if (confirmed) {
+          const uncategorizedIndex = orderedCategoryIds.indexOf(UNCATEGORIZED_CATEGORY_ID);
+          if (index < uncategorizedIndex) {
+            localStorage.setItem(UNCATEGORIZED_ORDER_KEY, String(uncategorizedIndex - 1));
+          }
           await CategoriesRepo.deleteCategory(cat.id);
           emit('toast', { message: 'Categoria excluída', type: 'info' });
           await renderList();
@@ -523,22 +543,18 @@ export async function createCategoriesView(): Promise<HTMLElement> {
   }
 
   async function handleReorder(fromIndex: number, toIndex: number) {
-    if (toIndex < 0 || toIndex >= categories.length) {
+    if (toIndex < 0 || toIndex >= orderedCategoryIds.length) {
       return;
     }
 
-    // Clona o array original
-    const newOrder = [...categories];
-    // Troca
-    const temp = newOrder[fromIndex];
-    newOrder[fromIndex] = newOrder[toIndex] as Category;
-    newOrder[toIndex] = temp as Category;
-
-    // Extrai os IDs na nova ordem
-    const orderedIds = newOrder.map((c) => c.id);
+    const moved = moveCategoryOrder(orderedCategoryIds, fromIndex, toIndex);
+    if (!moved) {
+      return;
+    }
 
     try {
-      await CategoriesRepo.reorderCategories(orderedIds);
+      localStorage.setItem(UNCATEGORIZED_ORDER_KEY, String(moved.uncategorizedPosition));
+      await CategoriesRepo.reorderCategories(moved.categoryIds);
       await renderList();
       emit('categories-changed', undefined);
     } catch (e) {

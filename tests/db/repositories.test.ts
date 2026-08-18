@@ -431,6 +431,52 @@ describe('LinksRepository', () => {
     expect(await LinksRepo.incrementUsageCount(link.id)).toBe(2);
     expect((await LinksRepo.getLink(link.id))?.usageCount).toBe(2);
   });
+
+  it('deve atualizar título e URL preservando os demais campos', async () => {
+    const link = await LinksRepo.createLink({ title: 'Antigo', url: 'https://old.example/' });
+    await LinksRepo.updateLink(link.id, { title: '  novo   portal ', url: 'https://new.example/' });
+
+    const updated = await LinksRepo.getLink(link.id);
+    expect(updated?.title).toBe('Novo portal');
+    expect(updated?.url).toBe('https://new.example/');
+    expect(updated?.createdAt).toBe(link.createdAt);
+  });
+
+  it('deve mover para a lixeira, ocultar dos ativos e restaurar', async () => {
+    const link = await LinksRepo.createLink({ title: 'Portal', url: 'https://example.com/' });
+    await LinksRepo.deleteLink(link.id);
+
+    expect(await LinksRepo.getAllLinks()).toHaveLength(0);
+    expect((await LinksRepo.getAllDeletedLinks()).map((item) => item.id)).toContain(link.id);
+
+    await LinksRepo.restoreLink(link.id);
+    expect((await LinksRepo.getAllLinks()).map((item) => item.id)).toContain(link.id);
+    expect(await LinksRepo.getAllDeletedLinks()).toHaveLength(0);
+  });
+
+  it('deve excluir definitivamente um link', async () => {
+    const link = await LinksRepo.createLink({ title: 'Portal', url: 'https://example.com/' });
+    await LinksRepo.hardDeleteLink(link.id);
+    expect(await LinksRepo.getLink(link.id)).toBeUndefined();
+  });
+
+  it('deve reordenar links conforme a seleção do usuário', async () => {
+    const first = await LinksRepo.createLink({ title: 'Primeiro', url: 'https://one.example/' });
+    const second = await LinksRepo.createLink({ title: 'Segundo', url: 'https://two.example/' });
+    const third = await LinksRepo.createLink({ title: 'Terceiro', url: 'https://three.example/' });
+
+    await LinksRepo.reorderLinks([third.id, first.id, second.id]);
+
+    expect((await LinksRepo.getAllLinks()).map((item) => item.id)).toEqual([
+      third.id,
+      first.id,
+      second.id
+    ]);
+  });
+
+  it('deve retornar undefined ao contabilizar um link inexistente', async () => {
+    expect(await LinksRepo.incrementUsageCount('missing')).toBeUndefined();
+  });
 });
 
 // ═════════════════════════════════════════════════════════════════════════════

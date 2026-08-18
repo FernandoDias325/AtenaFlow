@@ -6,7 +6,7 @@ Nesta página, explicamos como os seus dados são gerenciados pela nossa ferrame
 
 ## 1. Armazenamento 100% Local (Offline)
 
-Todo e qualquer dado, script, link, anotação de bloco de notas ou configuração inserido na extensão é gravado **única e exclusivamente no armazenamento local do seu próprio navegador**. Utilizamos tecnologias nativas do navegador, como o IndexedDB e o `chrome.storage`, para persistir seus dados.
+Todo e qualquer dado, script, link, anotação de bloco de notas, lembrete ou configuração inserido na extensão é gravado **única e exclusivamente no armazenamento local do seu próprio navegador**. Utilizamos tecnologias nativas do navegador, como o IndexedDB e o `chrome.storage`, para persistir seus dados.
 
 - Nós não possuímos servidores em nuvem.
 - Nós não temos acesso ao seu banco de dados.
@@ -32,11 +32,14 @@ Para disponibilizar o botão flutuante de scripts, a extensão executa um compon
 Solicitamos apenas as permissões estritamente necessárias para o funcionamento dos recursos principais:
 
 - `storage` e `unlimitedStorage`: Usadas apenas para que a extensão possa guardar seus textos e links localmente na sua própria máquina sem limites rígidos de cota que impeçam o uso do sistema.
+- `alarms`: Usada exclusivamente para agendar e reprogramar os lembretes cadastrados pelo próprio usuário. Isso permite processar o lembrete no horário definido mesmo quando a janela do AtenaFlow estiver fechada. Essa permissão não coleta dados, não monitora a navegação e não transmite informações para servidores externos.
 
 ## 5. Propriedade dos Dados
 
 Você é o único dono dos seus dados.
-O recurso de "Backup" integrado na extensão exporta um arquivo `.json` estritamente local (para o seu computador), permitindo que apenas você faça a portabilidade dos seus dados para outra máquina se desejar. Nós não fazemos o intermédio dessa transferência.
+O recurso de "Backup" integrado na extensão exporta um arquivo `.json` estritamente local (para o seu computador), permitindo que apenas você faça a portabilidade dos seus dados para outra máquina se desejar. O backup pode incluir scripts, categorias, links, anotações, lembretes e configurações. Nós não fazemos o intermédio dessa transferência.
+
+Antes de importar um arquivo, o AtenaFlow mantém localmente uma única cópia dos dados anteriores para permitir que o usuário desfaça a última importação.
 
 ## 6. Alterações na Política de Privacidade
 

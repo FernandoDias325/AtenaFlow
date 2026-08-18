@@ -42,4 +42,34 @@ describe('segurança e atualização do DOM', () => {
     expect(document.body.firstElementChild).toBe(card);
     expect(card.querySelector('.script-card__usage span')?.textContent).toBe('3');
   });
+
+  it('permite selecionar um card sem abrir a edição', () => {
+    const script: Script = {
+      id: 'script-selection',
+      title: 'Selecionável',
+      body: 'Conteúdo',
+      tags: [],
+      categoryId: null,
+      isFavorite: false,
+      isPinned: false,
+      usageCount: 0,
+      createdAt: 1,
+      updatedAt: 1,
+      deletedAt: null
+    };
+    let selectedId = '';
+    const card = createScriptCard({
+      script,
+      onRefresh: () => undefined,
+      selectionMode: true,
+      onSelectionChange: (id) => {
+        selectedId = id;
+      }
+    });
+
+    card.click();
+
+    expect(selectedId).toBe(script.id);
+    expect(card.querySelector<HTMLInputElement>('.script-card__select')).toBeTruthy();
+  });
 });

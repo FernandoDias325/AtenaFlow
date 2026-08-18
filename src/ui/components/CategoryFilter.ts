@@ -11,6 +11,11 @@
 import type { Category } from '../../core/models/types';
 import { normalizeCategoryName } from '../../core/db/categories.repository';
 import { emit } from '../../store/app-store';
+import {
+  buildCategoryOrder,
+  UNCATEGORIZED_CATEGORY_ID,
+  UNCATEGORIZED_ORDER_KEY
+} from '../../core/categories/uncategorized-order';
 
 // ─── Paleta de cores de tag ──────────────────────────────────────────────────
 
@@ -31,6 +36,7 @@ export function getTagColor(index: number): string {
 
 /** Mapa de ID de categoria → cor, preenchido durante o render. */
 export const categoryColorMap = new Map<string, string>();
+export { UNCATEGORIZED_CATEGORY_ID, UNCATEGORIZED_ORDER_KEY };
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -228,8 +234,37 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
   allChip.addEventListener('click', () => onSelect(null));
   container.appendChild(allChip);
 
+  const appendUncategorizedChip = () => {
+    const uncategorizedChip = document.createElement('button');
+    uncategorizedChip.className = `category-chip${selectedCategoryId === UNCATEGORIZED_CATEGORY_ID ? ' category-chip--active' : ''}`;
+    uncategorizedChip.type = 'button';
+    const uncategorizedDot = document.createElement('span');
+    uncategorizedDot.className = 'category-chip__dot';
+    uncategorizedDot.style.backgroundColor = 'var(--color-text-tertiary)';
+    const uncategorizedName = document.createElement('span');
+    uncategorizedName.textContent = 'Sem categoria';
+    uncategorizedChip.append(uncategorizedDot, uncategorizedName);
+    uncategorizedChip.addEventListener('click', () => onSelect(UNCATEGORIZED_CATEGORY_ID));
+    container.appendChild(uncategorizedChip);
+  };
+
+  const savedPosition = Number.parseInt(localStorage.getItem(UNCATEGORIZED_ORDER_KEY) ?? '0', 10);
+  const orderedIds = buildCategoryOrder(
+    categories.map((category) => category.id),
+    savedPosition
+  );
+
   // Chips de cada categoria
-  categories.forEach((cat, index) => {
+  let colorIndex = 0;
+  orderedIds.forEach((categoryId) => {
+    if (categoryId === UNCATEGORIZED_CATEGORY_ID) {
+      appendUncategorizedChip();
+      return;
+    }
+    const cat = categories.find((category) => category.id === categoryId);
+    if (!cat) {
+      return;
+    }
     const chip = document.createElement('button');
     chip.className = `category-chip${selectedCategoryId === cat.id ? ' category-chip--active' : ''}`;
     chip.type = 'button';
@@ -237,7 +272,7 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
     // Ponto de cor
     const dot = document.createElement('span');
     dot.className = 'category-chip__dot';
-    dot.style.backgroundColor = getTagColor(index);
+    dot.style.backgroundColor = getTagColor(colorIndex);
     chip.appendChild(dot);
 
     // Nome
@@ -247,6 +282,7 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
 
     chip.addEventListener('click', () => onSelect(cat.id));
     container.appendChild(chip);
+    colorIndex += 1;
   });
 
   // Botão "+ gerenciar"

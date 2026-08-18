@@ -13,6 +13,8 @@ import { emit } from '../../store/app-store';
 import * as ScriptsRepo from '../../core/db/scripts.repository';
 import * as CategoriesRepo from '../../core/db/categories.repository';
 import { showInputModal } from './InputModal';
+import { findSimilarScript } from '../../core/backup/backup.service';
+import { showDuplicateReviewModal } from './DuplicateReviewModal';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -584,6 +586,31 @@ export async function createScriptEditor(options: ScriptEditorOptions): Promise<
         await ScriptsRepo.updateScript(script.id, { title, body, notes, categoryId });
         emit('toast', { message: 'Script atualizado!', type: 'success' });
       } else {
+        const duplicate = await findSimilarScript(title, body);
+        if (duplicate) {
+          const decisions = await showDuplicateReviewModal([duplicate], {
+            title: 'Script semelhante encontrado',
+            description: 'Compare o script existente com o novo antes de salvar.',
+            cancelLabel: 'Cancelar cadastro',
+            confirmLabel: 'Aplicar escolha'
+          });
+          const decision = decisions?.[duplicate.key];
+          if (!decision || decision === 'keep-existing') {
+            emit('toast', { message: 'O script existente foi mantido', type: 'info' });
+            return;
+          }
+          if (decision === 'replace-existing') {
+            await ScriptsRepo.updateScript(duplicate.existing.id, {
+              title,
+              body,
+              notes,
+              categoryId
+            });
+            emit('toast', { message: 'Script existente atualizado!', type: 'success' });
+            goBack();
+            return;
+          }
+        }
         await ScriptsRepo.createScript({ title, body, notes, categoryId });
         emit('toast', { message: 'Script criado!', type: 'success' });
       }

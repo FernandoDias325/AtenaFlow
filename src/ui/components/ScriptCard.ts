@@ -60,6 +60,57 @@ const STYLES = `
     gap: var(--space-1);
   }
 
+  .script-card__select {
+    width: 16px;
+    height: 16px;
+    min-width: 16px;
+    max-width: 16px;
+    min-height: 16px;
+    max-height: 16px;
+    aspect-ratio: 1 / 1;
+    padding: 0;
+    box-sizing: border-box;
+    margin-top: 5px;
+    flex-shrink: 0;
+    appearance: none;
+    border: 1.5px solid var(--color-border-hover);
+    border-radius: 4px;
+    background: var(--color-bg-secondary);
+    display: grid;
+    place-content: center;
+    cursor: pointer;
+    transition: all var(--transition-fast);
+  }
+
+  .script-card__select::before {
+    content: '';
+    width: 8px;
+    height: 4px;
+    border-left: 2px solid #fff;
+    border-bottom: 2px solid #fff;
+    transform: rotate(-45deg) scale(0);
+    transition: transform var(--transition-fast);
+  }
+
+  .script-card__select:hover {
+    border-color: var(--color-primary);
+    box-shadow: 0 0 0 3px var(--color-primary-soft);
+  }
+
+  .script-card__select:checked {
+    border-color: transparent;
+    background: var(--bg-primary, var(--color-primary));
+  }
+
+  .script-card__select:checked::before {
+    transform: rotate(-45deg) scale(1);
+  }
+
+  .script-card__select:focus-visible {
+    outline: 2px solid var(--color-primary);
+    outline-offset: 2px;
+  }
+
   .script-card__title-row {
     display: flex;
     align-items: center;
@@ -95,7 +146,7 @@ const STYLES = `
   .script-card__actions {
     display: flex;
     align-items: center;
-    gap: var(--space-1);
+    gap: 0;
     flex-shrink: 0;
   }
 
@@ -103,18 +154,32 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: center;
-    width: 28px;
+    width: 0;
     height: 28px;
     border-radius: var(--radius-sm);
     color: var(--color-text-secondary);
-    transition: all var(--transition-fast);
+    overflow: hidden;
+    padding: 0;
+    margin-left: 0;
+    pointer-events: none;
+    transform: translateX(6px);
+    transition:
+      width var(--transition-fast),
+      margin-left var(--transition-fast),
+      opacity var(--transition-fast),
+      transform var(--transition-fast),
+      color var(--transition-fast),
+      background-color var(--transition-fast);
     opacity: 0;
   }
 
   .script-card:hover .script-card__action-btn,
-  .script-card:focus-within .script-card__action-btn,
-  .script-card__action-btn--active {
+  .script-card:focus-within .script-card__action-btn {
+    width: 28px;
+    margin-left: var(--space-1);
     opacity: 1;
+    pointer-events: auto;
+    transform: translateX(0);
   }
 
   .script-card__action-btn:hover {
@@ -146,10 +211,10 @@ const STYLES = `
     background-color: var(--color-warning-soft);
     padding: 2px 6px;
     border-radius: var(--radius-full);
-    margin-right: auto;
     display: inline-flex;
     align-items: center;
     gap: 3px;
+    white-space: nowrap;
   }
 
   .script-card mark {
@@ -246,6 +311,9 @@ export interface ScriptCardOptions {
   /** Cor CSS da categoria (ex: 'var(--color-tag-blue)'). */
   categoryColor?: string;
   searchQuery?: string;
+  selectionMode?: boolean;
+  selected?: boolean;
+  onSelectionChange?: (scriptId: string, selected: boolean) => void;
 }
 
 /**
@@ -255,7 +323,15 @@ export interface ScriptCardOptions {
 export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   injectStyles();
 
-  const { script, onRefresh, categoryColor, searchQuery } = options;
+  const {
+    script,
+    onRefresh,
+    categoryColor,
+    searchQuery,
+    selectionMode = false,
+    selected = false,
+    onSelectionChange
+  } = options;
   const card = document.createElement('div');
   card.className = 'script-card';
   if (script.isPinned) {
@@ -265,6 +341,17 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   card.setAttribute('tabindex', '0');
   card.setAttribute('aria-label', `Script: ${script.title}`);
   card.dataset.scriptId = script.id;
+
+  if (selectionMode) {
+    const checkbox = document.createElement('input');
+    checkbox.type = 'checkbox';
+    checkbox.className = 'script-card__select';
+    checkbox.checked = selected;
+    checkbox.setAttribute('aria-label', `Selecionar ${script.title}`);
+    checkbox.addEventListener('click', (event) => event.stopPropagation());
+    checkbox.addEventListener('change', () => onSelectionChange?.(script.id, checkbox.checked));
+    card.appendChild(checkbox);
+  }
 
   // ─── Conteúdo ──────────────────────────────────────────────────────
   const content = document.createElement('div');
@@ -399,6 +486,10 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
 
   // ─── Clique no card inteiro → editar ───────────────────────────────
   card.addEventListener('click', () => {
+    if (selectionMode) {
+      onSelectionChange?.(script.id, !selected);
+      return;
+    }
     emit('view-changed', { view: 'editor', scriptId: script.id });
   });
 
@@ -406,7 +497,11 @@ export function createScriptCard(options: ScriptCardOptions): HTMLElement {
   card.addEventListener('keydown', (e) => {
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault();
-      emit('view-changed', { view: 'editor', scriptId: script.id });
+      if (selectionMode) {
+        onSelectionChange?.(script.id, !selected);
+      } else {
+        emit('view-changed', { view: 'editor', scriptId: script.id });
+      }
     }
   });
 

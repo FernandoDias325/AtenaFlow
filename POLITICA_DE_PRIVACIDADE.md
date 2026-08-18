@@ -1,6 +1,6 @@
 # Política de Privacidade — AtenaFlow
 
-Última atualização: 16 de agosto de 2026.
+Última atualização: 18 de agosto de 2026.
 
 ## 1. Visão geral
 
@@ -13,6 +13,7 @@ A extensão pode armazenar as seguintes informações inseridas ou geradas pelo 
 - scripts de atendimento e suas categorias;
 - links úteis;
 - anotações do bloco de notas;
+- lembretes, horários, recorrências e respectivos estados;
 - preferências de tema e configurações;
 - sites nos quais o botão flutuante foi desativado;
 - contadores locais de utilização de scripts e links.
@@ -37,13 +38,14 @@ O usuário pode desativar o botão flutuante em domínios específicos nas confi
 
 - **Armazenamento (`storage`)**: salva configurações, preferências e dados necessários ao funcionamento da extensão.
 - **Armazenamento ampliado (`unlimitedStorage`)**: permite armazenar localmente a biblioteca de scripts, links e anotações sem depender do limite padrão reduzido do navegador.
+- **Agendamentos (`alarms`)**: agenda e reprograma exclusivamente os lembretes criados pelo usuário, permitindo que sejam processados no horário definido mesmo quando a janela da extensão estiver fechada. A permissão não é usada para coletar dados, monitorar a navegação ou transmitir informações.
 - **Acesso aos sites**: permite exibir o botão flutuante e inserir scripts nos campos selecionados pelo usuário.
 
 As permissões são utilizadas somente para as funcionalidades descritas nesta política.
 
 ## 6. Backup e importação
 
-O usuário pode exportar manualmente um arquivo de backup contendo scripts, categorias e links. Esse arquivo é gerado localmente e salvo no local escolhido pelo usuário.
+O usuário pode exportar manualmente um arquivo de backup contendo scripts, categorias, links, anotações, lembretes e configurações. Esse arquivo é gerado localmente e salvo no local escolhido pelo usuário. Antes de uma importação, a extensão também mantém localmente uma única cópia de segurança dos dados anteriores, usada somente pela opção de desfazer a última importação.
 
 A AtenaFlow não envia ou armazena cópias desse arquivo em servidores externos. A proteção, transferência e conservação do arquivo exportado são de responsabilidade do usuário.
 
@@ -55,7 +57,7 @@ A extensão aplica validações e tratamento de conteúdo para reduzir riscos as
 
 Os dados permanecem armazenados localmente enquanto a extensão estiver instalada ou até que o usuário os exclua.
 
-O usuário pode excluir scripts, links e anotações pela própria interface. Também pode remover todos os dados desinstalando a extensão e limpando os dados associados ao navegador.
+O usuário pode excluir scripts, links, anotações e lembretes pela própria interface. Também pode remover todos os dados desinstalando a extensão e limpando os dados associados ao navegador.
 
 ## 9. Serviços de terceiros
 

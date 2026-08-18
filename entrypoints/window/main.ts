@@ -11,6 +11,8 @@ import { getDB } from '../../src/core/db/schema';
 import { initAppShell } from '../../src/ui/components/AppShell';
 import { initToastSystem } from '../../src/ui/components/ToastNotification';
 import { updateListUsageCount } from '../../src/ui/views/ListView';
+import { emit } from '../../src/store/app-store';
+import { shouldShowCurrentRelease } from '../../src/core/release-notes/release-notes';
 
 async function main(): Promise<void> {
   try {
@@ -40,6 +42,11 @@ async function main(): Promise<void> {
     }
 
     await initAppShell(rootEl);
+
+    // Mostra as novidades uma única vez por versão instalada.
+    if (await shouldShowCurrentRelease()) {
+      emit('view-changed', { view: 'release-notes' });
+    }
 
     // Mantém a lista sincronizada quando um script é usado pelo popup injetado nas páginas.
     chrome.runtime.onMessage.addListener((message) => {

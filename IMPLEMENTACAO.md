@@ -1,5 +1,39 @@
 # Diário de Implementação (IMPLEMENTACAO.md)
 
+## [Versão 1.6.0] Segurança, organização, captura e lembretes (Concluído)
+
+- **Data:** 2026-08-18
+- **Versão:** v1.6.0
+- **Lançamento consolidado:** as melhorias inicialmente organizadas como 1.5.0 foram incorporadas a esta versão, pois a versão intermediária não foi publicada.
+- **Segurança e organização:** backup completo com restauração pré-importação, comparação de duplicados, ações em lote e grupo reordenável “Sem categoria”.
+- **Produtividade:** contador de uso dos links, captura de texto diretamente dos campos das páginas e manual completo integrado.
+- **Funcionalidades:** nova tela de Lembretes, recorrência única/diária/dias úteis/dias escolhidos, pausa e reativação, pendências, conclusão e adiamento por cinco minutos.
+- **Integração:** alarmes eficientes no service worker e cartão visual isolado no canto da página ativa, sem roubar o foco ou depender das notificações do sistema operacional.
+- **Segurança dos dados:** lembretes incluídos no backup completo e alarmes reconstruídos após inicialização, atualização, importação ou restauração.
+- **Qualidade:** testes de agendamento, persistência, pendências e fila visual, além da revisão automática do manual.
+- **Status:** Concluído.
+- **Correção de entrega:** quando a janela dedicada está em foco, o service worker procura uma aba comum compatível; um cartão só é marcado como exibido após a página confirmar o recebimento. Sem página compatível, permanece pendente para entrega posterior.
+- **Correção de concorrência:** alarmes no mesmo minuto são processados em fila e renderizações antigas da tela são descartadas, evitando perda de avisos e duplicação visual dos cartões.
+- **Correção de destino:** a última página compatível visível é registrada como destino preferencial e precisa confirmar o recebimento do cartão; pendências são recuperadas imediatamente quando essa página volta a carregar.
+- **Refinamento visual:** tela de lembretes com resumo compacto, filtros, estados visuais, descrições nos cartões, títulos normalizados e formulário com prévia do próximo aviso.
+- **Adiamento visível:** lembretes adiados exibem “Adiado +5”, o novo horário, contador e filtro próprios até o novo disparo.
+- **Cartões compactos:** controles agrupados na lateral, agendamento em linha fluida e descrições com quebras de linha preservadas e altura limitada.
+- **Altura uniforme:** todos os cartões usam o mesmo tamanho e mostram apenas uma prévia de duas linhas da descrição, sem rolagem interna.
+- **Cabeçalho responsivo:** marca e menu principal mantêm espaçamento visual adequado na largura padrão da janela, sem ocultar atalhos.
+
+---
+
+## [Planejado originalmente para 1.5.0] Segurança, organização e captura de scripts (Consolidado na 1.6.0)
+
+- **Data:** 2026-08-17
+- **Versão:** incorporada ao lançamento v1.6.0 antes da publicação
+- **Funcionalidades:** backup completo com restauração pré-importação, comparação de duplicados, ações em lote, grupo reordenável “Sem categoria”, contador de uso dos links e captura de texto diretamente dos campos das páginas.
+- **Compatibilidade:** pesquisa do popup isolada em Shadow DOM para reduzir interferência de sites hospedeiros.
+- **Qualidade:** suíte ampliada para 91 testes automatizados, com TypeScript e ESLint validados.
+- **Status:** Concluído e consolidado na versão 1.6.0.
+
+---
+
 Este documento registra o histórico cronológico de todas as implementações realizadas, testes executados e o status de cada fase de desenvolvimento da extensão **ScriptDesk**.
 
 ---
@@ -260,3 +294,24 @@ Este documento registra o histórico cronológico de todas as implementações r
   - **Vitest:** ✅ 55/55 testes passaram
 - **Pendências:** Nenhuma.
 - **Próximos Passos:** Fase 9 (Testes finais, Homologação e Lançamento v1.0).
+
+## [v1.5.0] Manual completo integrado (Concluído)
+
+- **Data:** 2026-08-17
+- **Funcionalidade:** Manual de uso pesquisável, acessível em Configurações, cobrindo todas as áreas do AtenaFlow.
+- **Cobertura:** scripts, categorias, ações em lote, variáveis, botão flutuante, captura de texto, duplicidades, links, bloco de notas, estatísticas, lixeira, backup, aparência, privacidade, capacidade e solução de problemas.
+- **Arquivos principais:** `src/ui/views/ManualView.ts`, `src/ui/views/SettingsView.ts`, `src/ui/components/AppShell.ts` e `tests/ui/manual.test.ts`.
+- **Testes:** compilação TypeScript aprovada e 96/96 testes Vitest aprovados.
+- **Status:** Concluído sem pendências.
+
+---
+
+## [v1.5.0] Novidades e auditoria automática do manual (Concluído)
+
+- **Data:** 2026-08-17
+- **Novidades:** tela com o resumo da versão, aberta somente uma vez por versão e sempre disponível em Configurações.
+- **Manual:** catálogo central de áreas públicas e teste automático de correspondência integral, sem tópicos ausentes ou duplicados.
+- **Testes:** 100/100 testes Vitest, TypeScript e ESLint aprovados.
+- **Status:** Concluído sem pendências.
+
+---

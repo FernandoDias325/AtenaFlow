@@ -5,12 +5,48 @@ import {
   normalizeSiteList
 } from '../src/core/settings/site-access';
 import { extractTemplateVariables, renderTemplateVariables } from '../src/core/templates/variables';
+import { filterPopupScripts, mountPopupSearchInput } from '../src/core/search/popup-search';
+import { captureTextFromField } from '../src/core/content/field-capture';
+import { createReminderAlertController } from '../src/core/content/reminder-alert';
+import type { Reminder } from '../src/core/reminders/reminder.types';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   async main() {
     console.log('[AtenaFlow] Content Script carregado.');
 
+    const reminderAlerts = createReminderAlertController((type, reminderId) =>
+      chrome.runtime.sendMessage({ type, reminderId })
+    );
+    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
+      if (message?.type === 'SHOW_REMINDER_ALERT' && message.reminder) {
+        reminderAlerts.enqueue(message.reminder as Reminder);
+        sendResponse({ accepted: true });
+      }
+    });
+    let pendingRecoveryRequested = false;
+    const reportActiveReminderPage = () => {
+      if (document.visibilityState !== 'visible') {
+        return;
+      }
+      void chrome.runtime.sendMessage({ type: 'REMINDER_PAGE_ACTIVE' }).catch(() => undefined);
+      if (!pendingRecoveryRequested) {
+        pendingRecoveryRequested = true;
+        chrome.runtime
+          .sendMessage({ type: 'GET_PENDING_REMINDERS', force: true })
+          .then((response) =>
+            (response?.reminders ?? []).forEach((reminder: Reminder) =>
+              reminderAlerts.enqueue(reminder)
+            )
+          )
+          .catch(() => {
+            pendingRecoveryRequested = false;
+          });
+      }
+    };
+    reportActiveReminderPage();
+    document.addEventListener('visibilitychange', reportActiveReminderPage);
+    window.addEventListener('focus', reportActiveReminderPage);
     let currentFocusedElement: HTMLElement | null = null;
     let iconElement: HTMLElement | null = null;
     let popupElement: HTMLElement | null = null;
@@ -150,6 +186,7 @@ export default defineContentScript({
       if (popupElement) {
         popupElement.remove();
       }
+      const capturedText = currentFocusedElement ? captureTextFromField(currentFocusedElement) : '';
 
       const res = await chrome.storage.local.get(['atenaflow-theme']);
       const themeId = res['atenaflow-theme'] || 'light';
@@ -324,16 +361,6 @@ export default defineContentScript({
 
         const scripts = response?.scripts || [];
 
-        if (scripts.length === 0) {
-          const empty = document.createElement('div');
-          empty.textContent = 'Nenhum script encontrado.';
-          empty.style.padding = '8px';
-          empty.style.fontSize = '12px';
-          empty.style.color = textSecondary;
-          container.appendChild(empty);
-          return;
-        }
-
         const viewList = document.createElement('div');
         viewList.style.display = 'block';
 
@@ -353,9 +380,13 @@ export default defineContentScript({
         title.style.padding = '0 4px';
         viewList.appendChild(title);
 
+        const saveCurrentBtn = document.createElement('button');
+        saveCurrentBtn.textContent = '＋ Salvar texto atual';
+        saveCurrentBtn.style.cssText = `width:100%;padding:7px 8px;margin-bottom:8px;border:1px solid ${borderColor};border-radius:6px;background:${inputBg};color:${textColor};cursor:pointer;font-size:12px;text-align:left;display:${capturedText ? 'block' : 'none'};`;
+        viewList.appendChild(saveCurrentBtn);
+
         const searchInput = document.createElement('input');
         searchInput.type = 'text';
-        searchInput.slot = 'search-input';
         searchInput.placeholder = 'Pesquisar script...';
         searchInput.style.cssText = `
           width: 100%;
@@ -383,17 +414,108 @@ export default defineContentScript({
           setTimeout(() => searchInput.focus(), 10);
         };
 
-        popupElement!.appendChild(searchInput);
-
-        const searchSlot = document.createElement('slot');
-        searchSlot.name = 'search-input';
-        viewList.appendChild(searchSlot);
+        // Mantém a pesquisa dentro do Shadow DOM para impedir que o site hospedeiro
+        // capture o campo como se ele fizesse parte da própria página.
+        mountPopupSearchInput(viewList, searchInput);
 
         const listContainer = document.createElement('div');
         viewList.appendChild(listContainer);
 
         container.appendChild(viewList);
         container.appendChild(viewEdit);
+
+        const showSaveCurrentText = async () => {
+          viewList.style.display = 'none';
+          viewEdit.style.display = 'flex';
+          viewEdit.innerHTML = '';
+          const heading = document.createElement('strong');
+          heading.textContent = 'Salvar como script';
+          heading.style.cssText = `font-size:12px;color:${textColor};margin-bottom:8px;`;
+          const titleField = document.createElement('input');
+          titleField.placeholder = 'Assunto do script';
+          const categoryField = document.createElement('select');
+          categoryField.innerHTML = '<option value="">Sem categoria</option>';
+          const categoryResponse = await chrome.runtime.sendMessage({ type: 'GET_CATEGORIES' });
+          for (const category of categoryResponse?.categories ?? []) {
+            const option = document.createElement('option');
+            option.value = category.id;
+            option.textContent = category.name;
+            categoryField.appendChild(option);
+          }
+          const bodyField = document.createElement('textarea');
+          bodyField.value = capturedText;
+          bodyField.style.minHeight = '90px';
+          for (const field of [titleField, categoryField, bodyField]) {
+            field.style.cssText += `width:100%;padding:7px;margin-bottom:8px;border:1px solid ${borderColor};border-radius:6px;background:${inputBg};color:${textColor};box-sizing:border-box;`;
+          }
+          const actions = document.createElement('div');
+          actions.style.cssText = 'display:flex;gap:6px;justify-content:flex-end;';
+          const back = document.createElement('button');
+          back.textContent = 'Voltar';
+          const save = document.createElement('button');
+          save.textContent = 'Salvar';
+          for (const button of [back, save]) {
+            button.style.cssText = `padding:7px 10px;border:1px solid ${borderColor};border-radius:5px;background:${inputBg};color:${textColor};cursor:pointer;`;
+          }
+          save.style.background = primaryColor;
+          save.style.color = '#fff';
+          back.onclick = () => {
+            viewEdit.style.display = 'none';
+            viewList.style.display = 'block';
+          };
+          const persist = async (replaceId?: string) => {
+            const response = await chrome.runtime.sendMessage({
+              type: 'SAVE_SCRIPT_FROM_PAGE',
+              title: titleField.value,
+              body: bodyField.value,
+              categoryId: categoryField.value || null,
+              replaceId
+            });
+            if (response?.success) {
+              cleanupUI();
+            }
+          };
+          save.onclick = async () => {
+            const scriptTitle = titleField.value.trim();
+            const scriptBody = bodyField.value.trim();
+            if (!scriptTitle || !scriptBody) {
+              titleField.focus();
+              return;
+            }
+            const { duplicate } = await chrome.runtime.sendMessage({
+              type: 'FIND_SIMILAR_SCRIPT',
+              title: scriptTitle,
+              body: scriptBody
+            });
+            if (!duplicate) {
+              await persist();
+              return;
+            }
+            viewEdit.innerHTML = '';
+            const comparison = document.createElement('div');
+            comparison.style.cssText = `font-size:11px;color:${textSecondary};white-space:pre-wrap;max-height:175px;overflow:auto;`;
+            comparison.textContent = `Possível duplicado (${Math.round(duplicate.similarity * 100)}%)\n\nJÁ EXISTE — ${duplicate.existing.title}\n${duplicate.existing.body}\n\nNOVO — ${scriptTitle}\n${scriptBody}`;
+            const choices = document.createElement('div');
+            choices.style.cssText = 'display:flex;flex-direction:column;gap:6px;margin-top:8px;';
+            const choice = (label: string, action: () => void) => {
+              const button = document.createElement('button');
+              button.textContent = label;
+              button.style.cssText = `padding:7px;border:1px solid ${borderColor};border-radius:5px;background:${inputBg};color:${textColor};cursor:pointer;`;
+              button.onclick = action;
+              return button;
+            };
+            choices.append(
+              choice('Manter o que já existe', cleanupUI),
+              choice('Atualizar o existente', () => void persist(duplicate.existing.id)),
+              choice('Salvar os dois', () => void persist())
+            );
+            viewEdit.append(comparison, choices);
+          };
+          actions.append(back, save);
+          viewEdit.append(heading, titleField, categoryField, bodyField, actions);
+          titleField.focus();
+        };
+        saveCurrentBtn.addEventListener('click', () => void showSaveCurrentText());
 
         const prepareInjection = (
           script: { id: string; title: string; body: string },
@@ -551,9 +673,7 @@ export default defineContentScript({
 
         const renderList = (filterText: string) => {
           listContainer.innerHTML = '';
-          const filtered = scripts.filter((s: { title: string; id: string; body: string }) =>
-            s.title.toLowerCase().includes(filterText.toLowerCase())
-          );
+          const filtered = filterPopupScripts(scripts, filterText);
 
           if (filtered.length === 0) {
             const empty = document.createElement('div');

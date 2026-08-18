@@ -18,6 +18,9 @@ import { createTrashView } from '../views/TrashView';
 import { createDashboardView } from '../views/DashboardView';
 import { createLinksView } from '../views/LinksView';
 import { createNotepadView } from '../views/NotepadView';
+import { createManualView } from '../views/ManualView';
+import { createReleaseNotesView } from '../views/ReleaseNotesView';
+import { createRemindersView } from '../views/RemindersView';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -105,6 +108,18 @@ export async function initAppShell(rootEl: HTMLElement): Promise<() => void> {
       case 'notepad': {
         const notepadView = await createNotepadView();
         shell.appendChild(notepadView);
+        break;
+      }
+      case 'manual': {
+        shell.appendChild(createManualView());
+        break;
+      }
+      case 'release-notes': {
+        shell.appendChild(createReleaseNotesView());
+        break;
+      }
+      case 'reminders': {
+        shell.appendChild(await createRemindersView());
         break;
       }
     }

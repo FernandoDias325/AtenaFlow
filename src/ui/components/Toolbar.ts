@@ -7,6 +7,7 @@
  */
 
 import { emit } from '../../store/app-store';
+import { getReminders } from '../../core/reminders/reminder.service';
 
 // ─── Estilos ─────────────────────────────────────────────────────────────────
 
@@ -121,6 +122,14 @@ const STYLES = `
     flex-shrink: 0;
   }
 
+  /* Mantém um respiro claro entre a marca e a navegação na janela padrão. */
+  @media (max-width: 390px) {
+    .toolbar { padding-inline: 12px; }
+    .toolbar__actions { gap: 6px; }
+    .toolbar__nav { gap: 0; }
+    .toolbar__icon-btn { width: 27px; }
+  }
+
   /* Compensa diferenças de escala do Windows e da moldura da janela. */
   @media (max-width: 355px) {
     .toolbar { padding-inline: 10px; }
@@ -225,6 +234,25 @@ export function createToolbar(): HTMLElement {
     emit('view-changed', { view: 'notepad' });
   });
 
+  const remindersBtn = document.createElement('button');
+  remindersBtn.className = 'toolbar__icon-btn';
+  remindersBtn.type = 'button';
+  remindersBtn.setAttribute('aria-label', 'Lembretes');
+  remindersBtn.title = 'Lembretes';
+  remindersBtn.style.position = 'relative';
+  remindersBtn.innerHTML = `<svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="M10.3 21h3.4"/><path d="M18 8a6 6 0 0 0-12 0c0 7-3 7-3 9h18c0-2-3-2-3-9"/></svg>`;
+  remindersBtn.addEventListener('click', () => emit('view-changed', { view: 'reminders' }));
+  void getReminders().then((reminders) => {
+    const pending = reminders.filter((reminder) => reminder.pendingSince !== null).length;
+    if (pending) {
+      const badge = document.createElement('span');
+      badge.textContent = pending > 9 ? '9+' : String(pending);
+      badge.style.cssText =
+        'position:absolute;top:-2px;right:-2px;min-width:13px;height:13px;padding:0 3px;border-radius:8px;background:var(--color-error);color:white;font-size:8px;line-height:13px;text-align:center;';
+      remindersBtn.appendChild(badge);
+    }
+  });
+
   const createBtn = document.createElement('button');
   createBtn.className = 'toolbar__btn';
   createBtn.type = 'button';
@@ -242,6 +270,7 @@ export function createToolbar(): HTMLElement {
 
   nav.appendChild(notepadBtn);
   nav.appendChild(linksBtn);
+  nav.appendChild(remindersBtn);
   nav.appendChild(statsBtn);
   nav.appendChild(settingsBtn);
   actions.appendChild(nav);

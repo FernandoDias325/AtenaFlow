@@ -14,18 +14,53 @@
 import { getDB } from '../db/schema';
 import type { Script, Category, Link } from '../models/types';
 import { normalizeHttpUrl } from '../validation/url';
+import { reconcileReminderAlarms } from '../reminders/reminder.service';
 
 export interface ExportData {
-  version: 1 | 2;
+  version: 1 | 2 | 3;
   timestamp: number;
   categories: Category[];
   scripts: Script[];
   links?: Link[];
+  preferences?: BackupPreferences;
+}
+
+export interface BackupPreferences {
+  chromeStorage: Record<string, unknown>;
+  localStorage: Record<string, string>;
+}
+
+export interface ImportDuplicate {
+  key: string;
+  type: 'script' | 'link';
+  existing: Script | Link;
+  incoming: Script | Link;
+  similarity: number;
+}
+
+export type DuplicateDecision = 'keep-existing' | 'replace-existing' | 'keep-both';
+
+export interface ImportOptions {
+  duplicateDecisions?: Record<string, DuplicateDecision>;
+}
+
+interface SafetySnapshot {
+  createdAt: number;
+  categories: Category[];
+  scripts: Script[];
+  links: Link[];
+  preferences: BackupPreferences;
 }
 
 const MAX_IMPORT_ITEMS = 20_000;
 const MAX_TITLE_LENGTH = 500;
 const MAX_BODY_LENGTH = 1_000_000;
+const PRE_IMPORT_SNAPSHOT_ID = 'pre-import-safety-snapshot';
+const PREFERENCE_LOCAL_KEYS = [
+  'atenaflow-theme',
+  'atenaflow-list-density',
+  'atenaflow-uncategorized-order'
+];
 
 function requiredString(value: unknown, field: string, maxLength: number): string {
   if (typeof value !== 'string' || !value.trim() || value.length > maxLength) {
@@ -107,6 +142,156 @@ function normalizeLink(value: unknown): Link {
   };
 }
 
+function normalizeComparableText(value: string): string {
+  return value
+    .normalize('NFD')
+    .replace(/[\u0300-\u036f]/g, '')
+    .toLocaleLowerCase('pt-BR')
+    .replace(/[^a-z0-9]+/g, ' ')
+    .trim();
+}
+
+function textSimilarity(left: string, right: string): number {
+  const a = normalizeComparableText(left);
+  const b = normalizeComparableText(right);
+  if (a === b) {
+    return 1;
+  }
+  if (!a || !b) {
+    return 0;
+  }
+  const aWords = new Set(a.split(' '));
+  const bWords = new Set(b.split(' '));
+  let intersection = 0;
+  for (const word of aWords) {
+    if (bWords.has(word)) {
+      intersection += 1;
+    }
+  }
+  const union = new Set([...aWords, ...bWords]).size;
+  return union ? intersection / union : 0;
+}
+
+function comparableWords(value: string): string[] {
+  return [
+    ...new Set(
+      normalizeComparableText(value)
+        .split(' ')
+        .filter((word) => word.length > 2)
+    )
+  ];
+}
+
+async function readPreferences(): Promise<BackupPreferences> {
+  const chromeStorage =
+    typeof chrome !== 'undefined' && chrome.storage?.local
+      ? ((await chrome.storage.local.get(null)) as Record<string, unknown>)
+      : {};
+  const localValues: Record<string, string> = {};
+  if (typeof localStorage !== 'undefined') {
+    for (const key of PREFERENCE_LOCAL_KEYS) {
+      const value = localStorage.getItem(key);
+      if (value !== null) {
+        localValues[key] = value;
+      }
+    }
+  }
+  return { chromeStorage, localStorage: localValues };
+}
+
+async function writePreferences(preferences?: BackupPreferences): Promise<void> {
+  if (!preferences) {
+    return;
+  }
+  if (typeof chrome !== 'undefined' && chrome.storage?.local) {
+    await chrome.storage.local.clear();
+    await chrome.storage.local.set(preferences.chromeStorage);
+    await reconcileReminderAlarms();
+  }
+  if (typeof localStorage !== 'undefined') {
+    for (const key of PREFERENCE_LOCAL_KEYS) {
+      localStorage.removeItem(key);
+    }
+    for (const [key, value] of Object.entries(preferences.localStorage)) {
+      if (PREFERENCE_LOCAL_KEYS.includes(key) && typeof value === 'string') {
+        localStorage.setItem(key, value);
+      }
+    }
+  }
+}
+
+function normalizePreferences(value: unknown): BackupPreferences | undefined {
+  if (!value || typeof value !== 'object') {
+    return undefined;
+  }
+  const item = value as Record<string, unknown>;
+  const chromeStorage =
+    item['chromeStorage'] && typeof item['chromeStorage'] === 'object'
+      ? (item['chromeStorage'] as Record<string, unknown>)
+      : {};
+  const localStorageValue =
+    item['localStorage'] && typeof item['localStorage'] === 'object'
+      ? (item['localStorage'] as Record<string, unknown>)
+      : {};
+  const localValues = Object.fromEntries(
+    Object.entries(localStorageValue).filter(
+      ([key, entry]) => PREFERENCE_LOCAL_KEYS.includes(key) && typeof entry === 'string'
+    )
+  ) as Record<string, string>;
+  return { chromeStorage, localStorage: localValues };
+}
+
+export async function createPreImportSnapshot(): Promise<void> {
+  const db = await getDB();
+  const snapshot: SafetySnapshot = {
+    createdAt: Date.now(),
+    categories: await db.getAll('categories'),
+    scripts: await db.getAll('scripts'),
+    links: await db.getAll('links'),
+    preferences: await readPreferences()
+  };
+  const data = JSON.stringify(snapshot);
+  await db.put('backups', {
+    id: PRE_IMPORT_SNAPSHOT_ID,
+    createdAt: snapshot.createdAt,
+    schemaVersion: 2,
+    sizeBytes: new Blob([data]).size,
+    data
+  });
+}
+
+export async function getPreImportSnapshotDate(): Promise<number | null> {
+  const snapshot = await (await getDB()).get('backups', PRE_IMPORT_SNAPSHOT_ID);
+  return snapshot?.createdAt ?? null;
+}
+
+export async function restorePreImportSnapshot(): Promise<boolean> {
+  const db = await getDB();
+  const stored = await db.get('backups', PRE_IMPORT_SNAPSHOT_ID);
+  if (!stored) {
+    return false;
+  }
+  const snapshot = JSON.parse(stored.data) as SafetySnapshot;
+  const tx = db.transaction(['categories', 'scripts', 'links'], 'readwrite');
+  await Promise.all([
+    tx.objectStore('categories').clear(),
+    tx.objectStore('scripts').clear(),
+    tx.objectStore('links').clear()
+  ]);
+  for (const category of snapshot.categories) {
+    await tx.objectStore('categories').put(category);
+  }
+  for (const script of snapshot.scripts) {
+    await tx.objectStore('scripts').put(script);
+  }
+  for (const link of snapshot.links) {
+    await tx.objectStore('links').put(link);
+  }
+  await tx.done;
+  await writePreferences(snapshot.preferences);
+  return true;
+}
+
 /**
  * Gera um objeto ExportData com todos os scripts e categorias ativos.
  */
@@ -126,11 +311,12 @@ export async function generateExportData(): Promise<ExportData> {
   );
 
   return {
-    version: 2,
+    version: 3,
     timestamp: Date.now(),
     categories,
     scripts: activeScripts,
-    links: activeLinks
+    links: activeLinks,
+    preferences: await readPreferences()
   };
 }
 
@@ -159,7 +345,12 @@ export async function exportBackup(): Promise<void> {
  * Importa dados de uma string JSON.
  * Usa transação atômica para mesclar (upsert) categorias e scripts.
  */
-export async function importBackup(jsonString: string): Promise<void> {
+function parseImportData(jsonString: string): {
+  categories: Category[];
+  scripts: Script[];
+  links: Link[];
+  preferences?: BackupPreferences;
+} {
   let parsed: unknown;
   try {
     parsed = JSON.parse(jsonString);
@@ -173,7 +364,7 @@ export async function importBackup(jsonString: string): Promise<void> {
 
   const parsedObj = parsed as Record<string, unknown>;
   if (
-    (parsedObj['version'] !== 1 && parsedObj['version'] !== 2) ||
+    (parsedObj['version'] !== 1 && parsedObj['version'] !== 2 && parsedObj['version'] !== 3) ||
     !Array.isArray(parsedObj['categories']) ||
     !Array.isArray(parsedObj['scripts'])
   ) {
@@ -192,6 +383,149 @@ export async function importBackup(jsonString: string): Promise<void> {
   const categoryIds = new Set(categories.map((category) => category.id));
   const scripts = parsedObj['scripts'].map((script) => normalizeScript(script, categoryIds));
   const links = Array.isArray(parsedObj['links']) ? parsedObj['links'].map(normalizeLink) : [];
+  const preferences = normalizePreferences(parsedObj['preferences']);
+  return { categories, scripts, links, ...(preferences ? { preferences } : {}) };
+}
+
+export async function analyzeImportDuplicates(jsonString: string): Promise<ImportDuplicate[]> {
+  const { scripts, links } = parseImportData(jsonString);
+  const db = await getDB();
+  const existingScripts = (await db.getAll('scripts')).filter((item) => item.deletedAt === null);
+  const existingLinks = (await db.getAll('links')).filter((item) => !item.deletedAt);
+  const duplicates: ImportDuplicate[] = [];
+  const scriptWordIndex = new Map<string, Set<number>>();
+  existingScripts.forEach((script, index) => {
+    for (const word of comparableWords(script.body)) {
+      const matches = scriptWordIndex.get(word) ?? new Set<number>();
+      matches.add(index);
+      scriptWordIndex.set(word, matches);
+    }
+  });
+
+  for (const incoming of scripts) {
+    let best: { item: Script; similarity: number } | null = null;
+    const candidateScores = new Map<number, number>();
+    for (const word of comparableWords(incoming.body)) {
+      for (const index of scriptWordIndex.get(word) ?? []) {
+        candidateScores.set(index, (candidateScores.get(index) ?? 0) + 1);
+      }
+    }
+    const candidates = [...candidateScores]
+      .sort((left, right) => right[1] - left[1])
+      .slice(0, 100)
+      .map(([index]) => existingScripts[index])
+      .filter((item): item is Script => item !== undefined);
+    for (const existing of candidates) {
+      if (existing.id === incoming.id) {
+        continue;
+      }
+      const bodySimilarity = textSimilarity(existing.body, incoming.body);
+      if (bodySimilarity >= 0.82 && (!best || bodySimilarity > best.similarity)) {
+        best = { item: existing, similarity: bodySimilarity };
+      }
+    }
+    if (best) {
+      duplicates.push({
+        key: `script:${incoming.id}:${best.item.id}`,
+        type: 'script',
+        existing: best.item,
+        incoming,
+        similarity: best.similarity
+      });
+    }
+  }
+
+  const linksByUrl = new Map(existingLinks.map((link) => [link.url, link]));
+  const linksByTitle = new Map(
+    existingLinks.map((link) => [normalizeComparableText(link.title), link])
+  );
+  for (const incoming of links) {
+    const existing =
+      linksByUrl.get(incoming.url) ?? linksByTitle.get(normalizeComparableText(incoming.title));
+    if (existing && existing.id !== incoming.id) {
+      duplicates.push({
+        key: `link:${incoming.id}:${existing.id}`,
+        type: 'link',
+        existing,
+        incoming,
+        similarity:
+          existing.url === incoming.url ? 1 : textSimilarity(existing.title, incoming.title)
+      });
+    }
+  }
+  return duplicates;
+}
+
+export async function findSimilarScript(
+  title: string,
+  body: string,
+  excludeId?: string
+): Promise<ImportDuplicate | null> {
+  const existingScripts = (await (await getDB()).getAll('scripts')).filter(
+    (item) => item.deletedAt === null && item.id !== excludeId
+  );
+  let best: { script: Script; similarity: number } | null = null;
+  for (const existing of existingScripts) {
+    const similarity = textSimilarity(existing.body, body);
+    if (similarity >= 0.82 && (!best || similarity > best.similarity)) {
+      best = { script: existing, similarity };
+    }
+  }
+  if (!best) {
+    return null;
+  }
+  const now = Date.now();
+  const incoming: Script = {
+    id: 'new-script',
+    title,
+    body,
+    categoryId: null,
+    tags: [],
+    isFavorite: false,
+    isPinned: false,
+    usageCount: 0,
+    createdAt: now,
+    updatedAt: now,
+    deletedAt: null
+  };
+  return {
+    key: `script:new:${best.script.id}`,
+    type: 'script',
+    existing: best.script,
+    incoming,
+    similarity: best.similarity
+  };
+}
+
+/**
+ * Importa dados de uma string JSON.
+ * Usa transação atômica para mesclar (upsert) categorias e scripts.
+ */
+export async function importBackup(jsonString: string, options: ImportOptions = {}): Promise<void> {
+  const { categories, scripts, links, preferences } = parseImportData(jsonString);
+  const duplicates = await analyzeImportDuplicates(jsonString);
+  const decisions = options.duplicateDecisions ?? {};
+  const scriptsToImport = [...scripts];
+  const linksToImport = [...links];
+
+  for (const duplicate of duplicates) {
+    const decision = decisions[duplicate.key] ?? 'keep-existing';
+    const collection = duplicate.type === 'script' ? scriptsToImport : linksToImport;
+    const incomingIndex = collection.findIndex((item) => item.id === duplicate.incoming.id);
+    if (incomingIndex < 0) {
+      continue;
+    }
+    if (decision === 'keep-existing') {
+      collection.splice(incomingIndex, 1);
+    } else if (decision === 'replace-existing') {
+      collection[incomingIndex] = {
+        ...duplicate.incoming,
+        id: duplicate.existing.id
+      } as Script & Link;
+    }
+  }
+
+  await createPreImportSnapshot();
   const db = await getDB();
 
   // Iniciar transação de escrita para as tabelas
@@ -207,7 +541,7 @@ export async function importBackup(jsonString: string): Promise<void> {
     }
 
     // 2. Upsert dos Scripts
-    for (const script of scripts) {
+    for (const script of scriptsToImport) {
       const existing = await scriptsStore.get(script.id);
       if (existing) {
         // Manter rigorosamente as estatísticas de uso locais!
@@ -224,11 +558,12 @@ export async function importBackup(jsonString: string): Promise<void> {
     }
 
     // 3. Upsert dos Links
-    for (const link of links) {
+    for (const link of linksToImport) {
       await linksStore.put(link);
     }
 
     await tx.done;
+    await writePreferences(preferences);
   } catch (e) {
     // tx abortada em caso de erro automaticamente (idb)
     console.error('Erro na transação de importação:', e);

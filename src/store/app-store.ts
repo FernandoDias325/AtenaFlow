@@ -36,6 +36,9 @@ export type ViewState =
   | { view: 'dashboard' }
   | { view: 'links' }
   | { view: 'notepad' }
+  | { view: 'manual' }
+  | { view: 'release-notes' }
+  | { view: 'reminders' }
   | { view: 'editor'; scriptId: string | null };
 
 /** Payload para notificações toast. */
