@@ -47,17 +47,18 @@ const STYLES = `
   }
 
   .list-view__meta {
-    display: inline-flex;
+    display: flex;
     align-items: center;
-    gap: var(--space-1);
-    justify-content: flex-end;
-    padding: 0 var(--space-4) var(--space-2);
+    gap: 8px;
+    padding: 8px var(--space-4) 10px;
     flex-shrink: 0;
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
     white-space: nowrap;
     box-sizing: border-box;
   }
+
+  .list-view__count { margin-right: auto; }
 
   .list-view__meta--selection {
     display: grid;
@@ -71,8 +72,8 @@ const STYLES = `
     display: inline-flex;
     align-items: center;
     justify-content: center;
-    width: 24px;
-    height: 24px;
+    width: 28px;
+    height: 28px;
     border-radius: var(--radius-sm);
     color: var(--color-text-tertiary);
   }
@@ -80,7 +81,8 @@ const STYLES = `
 
   .list-view__meta-sort {
     font-size: var(--font-size-xs);
-    padding: 2px 4px;
+    min-height: 28px;
+    padding: 4px 6px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     background-color: var(--color-bg-secondary);
@@ -91,7 +93,8 @@ const STYLES = `
   }
 
   .list-view__bulk-btn {
-    padding: 3px 7px;
+    min-height: 28px;
+    padding: 4px 8px;
     border: 1px solid var(--color-border);
     border-radius: var(--radius-sm);
     color: var(--color-text-secondary);
@@ -240,6 +243,7 @@ function renderFilterBarAndList(): void {
   meta.className = `list-view__meta${selectionMode ? ' list-view__meta--selection' : ''}`;
 
   const countText = document.createElement('span');
+  countText.className = 'list-view__count';
   countText.textContent = `${sorted.length} script${sorted.length !== 1 ? 's' : ''}`;
   if (!selectionMode) {
     meta.appendChild(countText);
@@ -317,12 +321,9 @@ function renderFilterBarAndList(): void {
   }
 
   if (!selectionMode) {
-    const dot = document.createElement('span');
-    dot.textContent = '·';
-    meta.appendChild(dot);
-
     const sortSelect = document.createElement('select');
     sortSelect.className = 'list-view__meta-sort';
+    sortSelect.setAttribute('aria-label', 'Ordenar scripts');
     sortSelect.innerHTML = `
       <option value="recent" ${currentSortMode === 'recent' ? 'selected' : ''}>Recentes</option>
       <option value="usage" ${currentSortMode === 'usage' ? 'selected' : ''}>Mais usados</option>

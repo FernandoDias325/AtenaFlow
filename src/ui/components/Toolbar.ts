@@ -16,6 +16,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     justify-content: space-between;
+    gap: 12px;
     padding: 14px var(--space-4);
     border-bottom: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-bg) 82%, transparent);
@@ -121,6 +122,39 @@ const STYLES = `
   .toolbar__btn svg, .toolbar__icon-btn svg {
     flex-shrink: 0;
   }
+
+  .toolbar__menu {
+    position: fixed;
+    inset: auto;
+    margin: 0;
+    width: 190px;
+    padding: 5px;
+    flex-direction: column;
+    gap: 3px;
+    border: 1px solid var(--color-border);
+    border-radius: var(--radius-md);
+    background: var(--color-bg);
+    color: var(--color-text);
+    box-shadow: var(--shadow-lg);
+  }
+  .toolbar__menu:popover-open { display: flex; }
+  .toolbar__menu-item {
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    width: 100%;
+    padding: 9px 10px;
+    border: none;
+    border-radius: var(--radius-sm);
+    background: transparent;
+    color: var(--color-text-secondary);
+    font: inherit;
+    font-size: var(--font-size-sm);
+    text-align: left;
+    cursor: pointer;
+  }
+  .toolbar__menu-item:hover, .toolbar__menu-item:focus-visible { background: var(--color-bg-hover); color: var(--color-primary); }
+  .toolbar__icon-btn:focus-visible, .toolbar__btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
 
   /* Mantém um respiro claro entre a marca e a navegação na janela padrão. */
   @media (max-width: 390px) {
@@ -271,8 +305,79 @@ export function createToolbar(): HTMLElement {
   nav.appendChild(notepadBtn);
   nav.appendChild(linksBtn);
   nav.appendChild(remindersBtn);
-  nav.appendChild(statsBtn);
-  nav.appendChild(settingsBtn);
+  const moreBtn = document.createElement('button');
+  moreBtn.className = 'toolbar__icon-btn';
+  moreBtn.type = 'button';
+  moreBtn.title = 'Mais opções';
+  moreBtn.setAttribute('aria-label', moreBtn.title);
+  moreBtn.setAttribute('aria-haspopup', 'menu');
+  moreBtn.setAttribute('aria-expanded', 'false');
+  moreBtn.innerHTML =
+    '<svg width="18" height="18" viewBox="0 0 24 24" fill="currentColor"><circle cx="5" cy="12" r="2"/><circle cx="12" cy="12" r="2"/><circle cx="19" cy="12" r="2"/></svg>';
+  const menu = document.createElement('div');
+  menu.className = 'toolbar__menu';
+  menu.id = `toolbar-menu-${crypto.randomUUID()}`;
+  menu.setAttribute('popover', 'auto');
+  menu.setAttribute('role', 'menu');
+  menu.setAttribute('aria-label', 'Mais opções');
+  moreBtn.setAttribute('aria-controls', menu.id);
+  const menuItems = [statsBtn, settingsBtn];
+  for (const button of menuItems) {
+    button.className = 'toolbar__menu-item';
+    button.setAttribute('role', 'menuitem');
+    const label = document.createElement('span');
+    label.textContent = button.title;
+    button.appendChild(label);
+    button.addEventListener('click', () => menu.hidePopover(), { capture: true });
+    menu.appendChild(button);
+  }
+  const openMenu = () => {
+    const rect = moreBtn.getBoundingClientRect();
+    menu.style.top = `${rect.bottom + 8}px`;
+    menu.style.left = `${Math.max(8, Math.min(rect.right - 190, window.innerWidth - 198))}px`;
+    menu.showPopover();
+    moreBtn.setAttribute('aria-expanded', 'true');
+    statsBtn.focus();
+  };
+  moreBtn.addEventListener('click', () => {
+    if (menu.matches(':popover-open')) {
+      menu.hidePopover();
+      moreBtn.focus();
+    } else {
+      openMenu();
+    }
+  });
+  moreBtn.addEventListener('keydown', (event) => {
+    if (event.key === 'ArrowDown') {
+      event.preventDefault();
+      openMenu();
+    }
+  });
+  menu.addEventListener('toggle', () =>
+    moreBtn.setAttribute('aria-expanded', String(menu.matches(':popover-open')))
+  );
+  menu.addEventListener('keydown', (event) => {
+    if (event.key === 'Escape') {
+      event.preventDefault();
+      menu.hidePopover();
+      moreBtn.focus();
+    } else if (event.key === 'Tab') {
+      menu.hidePopover();
+      moreBtn.focus();
+    } else if (['ArrowDown', 'ArrowUp', 'Home', 'End'].includes(event.key)) {
+      event.preventDefault();
+      const current = menuItems.indexOf(document.activeElement as HTMLButtonElement);
+      const next =
+        event.key === 'Home'
+          ? 0
+          : event.key === 'End'
+            ? 1
+            : (current + (event.key === 'ArrowDown' ? 1 : -1) + 2) % 2;
+      menuItems[next]!.focus();
+    }
+  });
+  nav.appendChild(moreBtn);
+  toolbar.appendChild(menu);
   actions.appendChild(nav);
   actions.appendChild(createBtn);
   toolbar.appendChild(actions);

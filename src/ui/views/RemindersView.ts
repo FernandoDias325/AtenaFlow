@@ -274,7 +274,8 @@ export async function createRemindersView(): Promise<HTMLElement> {
     modal.className = 'reminder-modal';
     const form = document.createElement('form');
     form.className = 'reminder-form';
-    const defaultDate = toLocalDateInput(new Date(Date.now() + 86_400_000));
+    const defaultMoment = new Date(Date.now() + 5 * 60_000);
+    const defaultDate = toLocalDateInput(defaultMoment);
     form.innerHTML = `<h2>${existing ? 'Editar lembrete' : 'Novo lembrete'}</h2>
       <section class="reminder-form-section"><h3 class="reminder-form-section__title">Informações</h3>
         <label class="reminder-field"><span>Título</span><input name="title" maxlength="120" placeholder="Ex.: Pausa para descanso" required></label>
@@ -296,7 +297,7 @@ export async function createRemindersView(): Promise<HTMLElement> {
     const enabledInput = form.elements.namedItem('enabled') as HTMLInputElement;
     titleInput.value = existing?.title ?? '';
     descInput.value = existing?.description ?? '';
-    timeInput.value = existing?.time ?? new Date().toTimeString().slice(0, 5);
+    timeInput.value = existing?.time ?? defaultMoment.toTimeString().slice(0, 5);
     recurrenceInput.value = existing?.recurrence ?? 'once';
     dateInput.value = existing?.date ?? defaultDate;
     enabledInput.checked = existing?.enabled ?? true;

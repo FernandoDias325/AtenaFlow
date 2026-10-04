@@ -122,7 +122,8 @@ export const MANUAL_SECTIONS: ManualSection[] = [
       'No horário programado, um cartão com as cores do AtenaFlow aparece no canto superior direito da página ativa por 10 segundos, sem interromper a digitação.',
       'No cartão, escolha Concluir, Adiar 5 minutos ou Fechar. Ao adiar, a tela mostra o estado “Adiado +5” e o horário exato do novo aviso. Se o cartão desaparecer sozinho, continuará pendente e poderá reaparecer posteriormente.',
       'A tela mostra lembretes ativos e pendentes. Também permite concluir, pausar, reativar, editar ou excluir cada cadastro.',
-      'O aviso precisa que o Chrome esteja aberto em uma página comum. Em páginas internas protegidas, ele permanece pendente até existir uma página compatível.',
+      'O aviso aparece na página compatível ou na janela do AtenaFlow que estiver em foco. Em páginas internas protegidas, permanece pendente até você voltar a uma página compatível ou à janela da extensão.',
+      'Os horários seguem o fuso local do computador. Se o Chrome estiver fechado ou o computador suspenso, pendências e adiamentos vencidos serão recuperados ao retomar o uso.',
       'Os lembretes fazem parte do backup completo. Depois de importar ou restaurar, os horários são agendados novamente automaticamente.'
     ],
     tip: 'Alarmes não acordam um computador suspenso; um aviso atrasado será tratado quando o Chrome voltar a funcionar.'
@@ -354,7 +355,7 @@ export function createManualView(): HTMLElement {
   const manifestVersion =
     typeof chrome !== 'undefined' && chrome.runtime?.getManifest
       ? chrome.runtime.getManifest().version
-      : '1.6.0';
+      : '1.7.0';
   version.textContent = `AtenaFlow ${manifestVersion}`;
   content.append(intro, searchWrap, tools, sectionsHost, empty, version);
   container.append(header, content);

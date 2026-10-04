@@ -20,6 +20,7 @@ const STYLES = `
   .release-item h3{margin:0 0 4px;color:var(--color-text);font-size:var(--font-size-sm)}
   .release-item p{margin:0;color:var(--color-text-secondary);font-size:var(--font-size-xs);line-height:1.45}
   .release-footer{padding-top:var(--space-3);text-align:center;color:var(--color-text-tertiary);font-size:10px}
+  .release-view__continue{margin:var(--space-3) var(--space-4);padding:10px;border:none;border-radius:var(--radius-md);background:var(--bg-primary);color:var(--color-primary-text);font:inherit;cursor:pointer;flex-shrink:0}
 `;
 
 let styleInjected = false;
@@ -82,6 +83,11 @@ export function createReleaseNotesView(): HTMLElement {
   footer.className = 'release-footer';
   footer.textContent = 'Você pode rever esta tela em Configurações.';
   content.appendChild(footer);
-  container.append(header, content);
+  const continueBtn = document.createElement('button');
+  continueBtn.className = 'release-view__continue';
+  continueBtn.type = 'button';
+  continueBtn.textContent = 'Continuar para o AtenaFlow';
+  continueBtn.addEventListener('click', () => emit('view-changed', { view: 'list' }));
+  container.append(header, content, continueBtn);
   return container;
 }

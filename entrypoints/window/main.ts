@@ -7,6 +7,7 @@
  */
 
 import '../../src/ui/theme/tokens.css';
+import { installReminderDelivery } from '../../src/core/content/reminder-delivery';
 import { getDB } from '../../src/core/db/schema';
 import { initAppShell } from '../../src/ui/components/AppShell';
 import { initToastSystem } from '../../src/ui/components/ToastNotification';
@@ -31,6 +32,7 @@ async function main(): Promise<void> {
 
     // 2. Inicializa o banco de dados (cria object stores na primeira vez)
     await getDB();
+    installReminderDelivery();
 
     // 2. Inicializa o sistema de toasts (escuta eventos do store)
     initToastSystem();

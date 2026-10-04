@@ -37,7 +37,10 @@ describe('tela de lembretes', () => {
     });
   });
 
-  afterEach(() => vi.unstubAllGlobals());
+  afterEach(() => {
+    vi.unstubAllGlobals();
+    vi.useRealTimers();
+  });
 
   it('não duplica cartões quando duas atualizações chegam juntas', async () => {
     const view = await createRemindersView();
@@ -55,5 +58,15 @@ describe('tela de lembretes', () => {
     expect(view.textContent).toContain('Adiado +5 min');
     expect(view.textContent).toContain('Adiados');
     expect(view.querySelector('.reminder-side .reminder-actions')).not.toBeNull();
+  });
+  it('inicia um lembrete novo para hoje e cinco minutos à frente', async () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date(2026, 7, 18, 9, 0));
+    const view = await createRemindersView();
+    document.body.appendChild(view);
+    (view.querySelector('.reminders-add') as HTMLButtonElement).click();
+    expect((view.querySelector('[name="date"]') as HTMLInputElement).value).toBe('2026-08-18');
+    expect((view.querySelector('[name="time"]') as HTMLInputElement).value).toBe('09:05');
+    expect(view.querySelector('.reminder-preview')!.textContent).toContain('18/08');
   });
 });

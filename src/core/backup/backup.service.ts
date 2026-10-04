@@ -135,6 +135,10 @@ function normalizeLink(value: unknown): Link {
     id: requiredString(item['id'], 'links.id', 200),
     title: requiredString(item['title'], 'links.title', MAX_TITLE_LENGTH),
     url,
+    groupName:
+      typeof item['groupName'] === 'string'
+        ? item['groupName'].trim().replace(/\s+/g, ' ').slice(0, 60) || null
+        : null,
     order: finiteNumber(item['order'], 0),
     createdAt: finiteNumber(item['createdAt'], Date.now()),
     usageCount: finiteNumber(item['usageCount'], 0),

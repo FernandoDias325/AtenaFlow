@@ -93,8 +93,8 @@ const STYLES = `
   .notepad-view__status {
     font-size: var(--font-size-xs);
     color: var(--color-text-tertiary);
-    transition: opacity 0.3s;
-    opacity: 0;
+    white-space: nowrap;
+    opacity: 1;
   }
 
   .notepad-view__status.visible {
@@ -113,37 +113,45 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 6px;
-    padding: 8px var(--space-4);
+    padding: 9px 2px;
+    min-width: 0;
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
     scrollbar-width: none;
+    background: transparent;
+  }
+
+  .notepad-tabs-wrap {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    padding: 0 var(--space-4);
+    flex-shrink: 0;
+    min-width: 0;
     border-bottom: 1px solid var(--color-border);
     background: color-mix(in srgb, var(--color-bg) 72%, transparent);
   }
 
-  .notepad-tabs-wrap { position: relative; flex-shrink: 0; }
+  .notepad-tabs-viewport { display: flex; align-items: center; gap: 4px; flex: 1; min-width: 0; }
+  .notepad-tabs { flex: 1; }
+  .notepad-tab { flex-shrink: 0; }
 
   .notepad-tabs__scroll-btn {
-    position: absolute;
-    top: 50%;
-    z-index: 3;
     display: inline-flex;
     align-items: center;
     justify-content: center;
     width: 24px;
     height: 24px;
-    transform: translateY(-50%);
+    flex-shrink: 0;
     border: 1px solid var(--color-border);
     border-radius: 50%;
     color: var(--color-text-secondary);
     background: var(--color-bg);
-    box-shadow: var(--shadow-sm);
+    cursor: pointer;
   }
 
-  .notepad-tabs__scroll-btn:first-of-type { left: 4px; }
-  .notepad-tabs__scroll-btn:last-of-type { right: 4px; }
-  .notepad-tabs__scroll-btn--hidden { opacity: 0; visibility: hidden; pointer-events: none; }
+  .notepad-tabs__scroll-btn--hidden { display: none; }
   .notepad-tabs__scroll-btn:hover { color: var(--color-primary); background: var(--color-bg-hover); }
 
   .notepad-tabs::-webkit-scrollbar { display: none; }
@@ -154,9 +162,9 @@ const STYLES = `
     gap: 5px;
     max-width: 150px;
     padding: 5px 8px 5px 10px;
-    border: 1px solid var(--color-border);
+    border: 1px solid var(--color-border-hover);
     border-radius: var(--radius-full);
-    background: color-mix(in srgb, var(--color-bg) 88%, transparent);
+    background: var(--color-bg-tertiary);
     color: var(--color-text-secondary);
     font-size: var(--font-size-xs);
     white-space: nowrap;
@@ -164,11 +172,15 @@ const STYLES = `
   }
 
   .notepad-tab--active {
-    color: var(--color-text);
+    color: var(--color-primary);
     border-color: var(--color-primary);
     background: var(--color-primary-soft);
     font-weight: var(--font-weight-semibold);
   }
+
+  .notepad-tab:hover { background: var(--color-bg-hover); }
+  .notepad-tab--active:hover { background: var(--color-primary-soft); }
+  .notepad-tab:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
   .notepad-tab--dragging { opacity: .45; }
 
@@ -196,8 +208,12 @@ const STYLES = `
     border-radius: 50%;
     color: var(--color-primary-text);
     background: var(--bg-primary);
-    box-shadow: 0 4px 10px color-mix(in srgb, var(--color-primary) 22%, transparent);
+    border: none;
   }
+
+  .notepad-tabs__add { cursor: pointer; transition: background var(--transition-fast), transform var(--transition-fast); }
+  .notepad-tabs__add:hover { filter: brightness(1.08); transform: translateY(-1px); }
+  .notepad-tabs__add:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 3px; }
 
   .notepad-tabs__empty { padding: 4px 8px; color: var(--color-text-tertiary); font-size: var(--font-size-xs); white-space: nowrap; }
 
@@ -205,8 +221,7 @@ const STYLES = `
     position: relative;
     display: flex;
     align-items: center;
-    padding: 7px var(--space-4);
-    border-bottom: 1px solid var(--color-border);
+    padding: 4px var(--space-4) 8px;
     background: color-mix(in srgb, var(--color-bg) 68%, transparent);
   }
 
@@ -222,8 +237,8 @@ const STYLES = `
     width: 100%;
     height: 31px;
     padding: 5px 34px;
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-full);
+    border: 1px solid transparent;
+    border-radius: var(--radius-md);
     outline: none;
     color: var(--color-text);
     background: color-mix(in srgb, var(--color-bg-secondary) 86%, transparent);
@@ -245,8 +260,8 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: 2px;
-    padding: 7px var(--space-3);
-    background-color: var(--color-bg-secondary);
+    padding: 6px var(--space-4);
+    background-color: var(--color-bg);
     border-bottom: 1px solid var(--color-border);
     flex-wrap: nowrap;
     flex-shrink: 0;
@@ -277,19 +292,19 @@ const STYLES = `
   }
 
   .notepad-toolbar__btn.active {
-    background: var(--bg-primary);
-    color: var(--color-white);
-    border-color: var(--color-primary);
+    background: var(--color-primary-soft);
+    color: var(--color-primary);
+    border-color: transparent;
   }
 
   .notepad-toolbar__btn:hover.active {
-    background: var(--bg-primary-hover);
+    background: var(--color-primary-soft);
   }
 
   .notepad-toolbar__divider {
     width: 1px;
-    height: 16px;
-    background-color: var(--color-border);
+    height: 14px;
+    background-color: color-mix(in srgb, var(--color-border) 70%, transparent);
     margin: 0 3px;
     flex-shrink: 0;
   }
@@ -298,8 +313,8 @@ const STYLES = `
     flex: 1;
     width: auto;
     margin: var(--space-4);
-    border: 1px solid var(--color-border);
-    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in srgb, var(--color-border) 55%, transparent);
+    border-radius: var(--radius-lg, 12px);
     padding: var(--space-5);
     font-family: inherit;
     font-size: var(--font-size-md);
@@ -308,7 +323,7 @@ const STYLES = `
     background-color: var(--color-bg);
     overflow-y: auto;
     box-sizing: border-box;
-    box-shadow: 0 1px 3px rgba(0,0,0,0.05);
+    box-shadow: none;
   }
 
   .notepad-view__editor:focus {
@@ -371,6 +386,17 @@ const STYLES = `
     color: var(--color-white);
     border-color: var(--color-primary);
   }
+
+  .notepad-toolbar.collapsed { display: none; }
+
+  .notepad-view__content--toolbar-collapsed .notepad-search { padding-right: 50px; }
+  .notepad-view__content--toolbar-collapsed .notepad-search__count { right: 59px; }
+  .notepad-search > .toggle-toolbar-btn {
+    position: absolute;
+    right: var(--space-4);
+    top: 7px;
+  }
+  .notepad-view__content--toolbar-collapsed .notepad-view__editor { margin-top: 8px; }
 
   .notepad-toolbar.collapsed .notepad-toolbar__btn:not(.toggle-toolbar-btn) {
     display: none;
@@ -445,6 +471,7 @@ export async function createNotepadView(): Promise<HTMLElement> {
   const status = document.createElement('span');
   status.className = 'notepad-view__status';
   status.textContent = 'Salvo';
+  status.setAttribute('role', 'status');
   header.appendChild(status);
 
   container.appendChild(header);
@@ -457,13 +484,15 @@ export async function createNotepadView(): Promise<HTMLElement> {
   tabsWrap.className = 'notepad-tabs-wrap';
 
   const previousTabsBtn = document.createElement('button');
-  previousTabsBtn.className = 'notepad-tabs__scroll-btn notepad-tabs__scroll-btn--hidden';
+  previousTabsBtn.className =
+    'notepad-tabs__scroll-btn notepad-tabs__scroll-btn--previous notepad-tabs__scroll-btn--hidden';
   previousTabsBtn.type = 'button';
   previousTabsBtn.setAttribute('aria-label', 'Abas anteriores');
   previousTabsBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m15 18-6-6 6-6"/></svg>`;
 
   const nextTabsBtn = document.createElement('button');
-  nextTabsBtn.className = 'notepad-tabs__scroll-btn notepad-tabs__scroll-btn--hidden';
+  nextTabsBtn.className =
+    'notepad-tabs__scroll-btn notepad-tabs__scroll-btn--next notepad-tabs__scroll-btn--hidden';
   nextTabsBtn.type = 'button';
   nextTabsBtn.setAttribute('aria-label', 'Próximas abas');
   nextTabsBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="m9 18 6-6-6-6"/></svg>`;
@@ -471,7 +500,10 @@ export async function createNotepadView(): Promise<HTMLElement> {
   const tabsBar = document.createElement('div');
   tabsBar.className = 'notepad-tabs';
   tabsBar.setAttribute('role', 'tablist');
-  tabsWrap.append(previousTabsBtn, tabsBar, nextTabsBtn);
+  const tabsViewport = document.createElement('div');
+  tabsViewport.className = 'notepad-tabs-viewport';
+  tabsViewport.append(previousTabsBtn, tabsBar, nextTabsBtn);
+  tabsWrap.appendChild(tabsViewport);
   content.appendChild(tabsWrap);
 
   const searchRow = document.createElement('div');
@@ -492,6 +524,8 @@ export async function createNotepadView(): Promise<HTMLElement> {
   // ─── Toolbar ────────────────────────────────────────────────────────
   const toolbar = document.createElement('div');
   toolbar.className = 'notepad-toolbar';
+  toolbar.setAttribute('role', 'toolbar');
+  toolbar.setAttribute('aria-label', 'Formatação das anotações');
 
   // Guardar botões para atualizar estado ativo
   const formatButtons: Record<string, HTMLButtonElement> = {};
@@ -633,6 +667,11 @@ export async function createNotepadView(): Promise<HTMLElement> {
       } else if (command === 'custom_toggleToolbar') {
         toolbar.classList.toggle('collapsed');
         const isCollapsed = toolbar.classList.contains('collapsed');
+        content.classList.toggle('notepad-view__content--toolbar-collapsed', isCollapsed);
+        (isCollapsed ? searchRow : toolbar).appendChild(btn);
+        btn.setAttribute('aria-expanded', String(!isCollapsed));
+        btn.title = isCollapsed ? 'Expandir formatação' : 'Minimizar formatação';
+        btn.setAttribute('aria-label', btn.title);
         btn.innerHTML = isCollapsed
           ? `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m6 9 6 6 6-6"/></svg>`
           : `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><path d="m18 15-6-6-6 6"/></svg>`;
@@ -648,6 +687,8 @@ export async function createNotepadView(): Promise<HTMLElement> {
   const createDivider = () => {
     const div = document.createElement('div');
     div.className = 'notepad-toolbar__divider';
+    div.setAttribute('role', 'separator');
+    div.setAttribute('aria-orientation', 'vertical');
     return div;
   };
 
@@ -689,6 +730,7 @@ export async function createNotepadView(): Promise<HTMLElement> {
     'Minimizar/Expandir'
   );
   toggleBtn.classList.add('toggle-toolbar-btn');
+  toggleBtn.setAttribute('aria-expanded', 'true');
   toolbar.appendChild(toggleBtn);
 
   content.appendChild(toolbar);
@@ -721,7 +763,6 @@ export async function createNotepadView(): Promise<HTMLElement> {
   editor.innerHTML = getActiveTab().html;
 
   let saveTimeout: ReturnType<typeof setTimeout> | null = null;
-  let statusTimeout: ReturnType<typeof setTimeout> | null = null;
 
   const persistTabs = async () => {
     await chrome.storage.local.set({ [NOTEPAD_KEY]: tabsState });
@@ -884,34 +925,35 @@ export async function createNotepadView(): Promise<HTMLElement> {
       tabsBar.appendChild(tabBtn);
     });
 
-    const addTabBtn = document.createElement('button');
-    addTabBtn.className = 'notepad-tabs__add';
-    addTabBtn.type = 'button';
-    addTabBtn.title = 'Criar nova aba';
-    addTabBtn.setAttribute('aria-label', 'Criar nova aba');
-    addTabBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>`;
-    addTabBtn.addEventListener('click', async () => {
-      const title = await showInputModal({
-        title: 'Nova aba',
-        message: 'Dê um nome para organizar suas anotações.',
-        placeholder: 'Ex.: Lembretes',
-        confirmLabel: 'Criar'
-      });
-      if (!title) {
-        return;
-      }
-      await saveActiveTab();
-      const newTab = createTab(normalizeTabTitle(title));
-      tabsState.tabs.push(newTab);
-      tabsState.activeTabId = newTab.id;
-      editor.innerHTML = '';
-      await persistTabs();
-      renderTabs();
-      editor.focus();
-    });
-    tabsBar.appendChild(addTabBtn);
     requestAnimationFrame(updateTabArrows);
   };
+
+  const addTabBtn = document.createElement('button');
+  addTabBtn.className = 'notepad-tabs__add';
+  addTabBtn.type = 'button';
+  addTabBtn.title = 'Criar nova aba';
+  addTabBtn.setAttribute('aria-label', 'Criar nova aba');
+  addTabBtn.innerHTML = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M12 5v14M5 12h14"/></svg>`;
+  addTabBtn.addEventListener('click', async () => {
+    const title = await showInputModal({
+      title: 'Nova aba',
+      message: 'Dê um nome para organizar suas anotações.',
+      placeholder: 'Ex.: Lembretes',
+      confirmLabel: 'Criar'
+    });
+    if (!title) {
+      return;
+    }
+    await saveActiveTab();
+    const newTab = createTab(normalizeTabTitle(title));
+    tabsState.tabs.push(newTab);
+    tabsState.activeTabId = newTab.id;
+    editor.innerHTML = '';
+    await persistTabs();
+    renderTabs();
+    editor.focus();
+  });
+  tabsWrap.prepend(addTabBtn);
 
   previousTabsBtn.addEventListener('click', () => {
     tabsBar.scrollBy({ left: -Math.max(140, tabsBar.clientWidth * 0.65), behavior: 'smooth' });
@@ -1030,14 +1072,8 @@ export async function createNotepadView(): Promise<HTMLElement> {
       try {
         await saveActiveTab();
         status.textContent = 'Salvo';
-
-        if (statusTimeout) {
-          clearTimeout(statusTimeout);
-        }
-        statusTimeout = setTimeout(() => {
-          status.classList.remove('visible');
-        }, 2000);
       } catch (err) {
+        status.textContent = 'Falha ao salvar';
         console.error('Erro ao salvar bloco de notas:', err);
       }
     }, 500); // 500ms debounce

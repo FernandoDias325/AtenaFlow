@@ -45,7 +45,8 @@ const STYLES = `
     display: flex;
     align-items: center;
     min-width: 0;
-    position: relative;
+    gap: 6px;
+    padding: 0 var(--space-4);
   }
 
   .category-chips {
@@ -54,7 +55,7 @@ const STYLES = `
     min-width: 0;
     align-items: center;
     gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
+    padding: var(--space-2) 0;
     overflow-x: auto;
     overflow-y: hidden;
     flex-shrink: 0;
@@ -85,10 +86,7 @@ const STYLES = `
   }
 
   .category-scroll__btn {
-    position: absolute;
-    top: 50%;
-    transform: translateY(-50%);
-    z-index: 2;
+    flex-shrink: 0;
     display: inline-flex;
     align-items: center;
     justify-content: center;
@@ -102,8 +100,6 @@ const STYLES = `
     transition: all var(--transition-fast);
   }
 
-  .category-scroll__btn:first-child { left: 4px; }
-  .category-scroll__btn:last-child { right: 4px; }
 
   .category-scroll__btn:hover {
     color: var(--color-primary);
@@ -112,10 +108,11 @@ const STYLES = `
   }
 
   .category-scroll__btn--hidden {
-    opacity: 0;
-    visibility: hidden;
-    pointer-events: none;
+    display: none;
   }
+
+  .category-chip > span:last-child { max-width: 200px; overflow: hidden; text-overflow: ellipsis; }
+  .category-chip:focus-visible, .category-scroll__btn:focus-visible { outline: 2px solid var(--color-primary); outline-offset: -2px; }
 
   .category-chip:hover {
     border-color: var(--color-border-hover);
@@ -231,6 +228,7 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
   allChip.className = `category-chip${selectedCategoryId === null ? ' category-chip--active' : ''}`;
   allChip.type = 'button';
   allChip.textContent = 'Todas';
+  allChip.setAttribute('aria-pressed', String(selectedCategoryId === null));
   allChip.addEventListener('click', () => onSelect(null));
   container.appendChild(allChip);
 
@@ -238,6 +236,11 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
     const uncategorizedChip = document.createElement('button');
     uncategorizedChip.className = `category-chip${selectedCategoryId === UNCATEGORIZED_CATEGORY_ID ? ' category-chip--active' : ''}`;
     uncategorizedChip.type = 'button';
+    uncategorizedChip.title = 'Sem categoria';
+    uncategorizedChip.setAttribute(
+      'aria-pressed',
+      String(selectedCategoryId === UNCATEGORIZED_CATEGORY_ID)
+    );
     const uncategorizedDot = document.createElement('span');
     uncategorizedDot.className = 'category-chip__dot';
     uncategorizedDot.style.backgroundColor = 'var(--color-text-tertiary)';
@@ -278,6 +281,8 @@ export function createCategoryFilter(options: CategoryFilterOptions): HTMLElemen
     // Nome
     const nameSpan = document.createElement('span');
     nameSpan.textContent = normalizeCategoryName(cat.name);
+    chip.title = nameSpan.textContent;
+    chip.setAttribute('aria-pressed', String(selectedCategoryId === cat.id));
     chip.appendChild(nameSpan);
 
     chip.addEventListener('click', () => onSelect(cat.id));

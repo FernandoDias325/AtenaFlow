@@ -3,6 +3,7 @@ import * as LinksRepo from '../../core/db/links.repository';
 import type { Link } from '../../core/models/types';
 import { showConfirmModal } from '../components/ConfirmModal';
 import { createSearchBar } from '../components/SearchBar';
+import { openLinkGroup } from '../../core/links/open-group';
 import { normalizeHttpUrl } from '../../core/validation/url';
 
 const STYLES = `
@@ -18,7 +19,7 @@ const STYLES = `
     display: flex;
     align-items: center;
     gap: var(--space-3);
-    padding: var(--space-3) var(--space-5);
+    padding: var(--space-3) var(--space-4);
     border-bottom: 1px solid var(--color-border);
     flex-shrink: 0;
     background: color-mix(in srgb, var(--color-bg) 84%, transparent);
@@ -60,7 +61,7 @@ const STYLES = `
     font-weight: var(--font-weight-medium);
     cursor: pointer;
     border: none;
-    box-shadow: 0 5px 14px color-mix(in srgb, var(--color-primary) 24%, transparent);
+    white-space: nowrap;
     transition: all var(--transition-fast);
   }
 
@@ -107,8 +108,7 @@ const STYLES = `
 
   .link-item:hover {
     border-color: color-mix(in srgb, var(--color-primary) 45%, var(--color-border));
-    transform: translateY(-1px);
-    box-shadow: 0 7px 18px color-mix(in srgb, var(--color-primary) 10%, transparent);
+    background: var(--color-bg-hover);
   }
 
   .link-item__info {
@@ -149,6 +149,8 @@ const STYLES = `
     font-weight: var(--font-weight-medium);
   }
 
+  .link-item__usage[hidden] { display: none; }
+
   .link-item__actions {
     display: flex;
     gap: 2px;
@@ -180,7 +182,7 @@ const STYLES = `
   }
 
   .link-modal {
-    position: absolute;
+    position: fixed;
     top: 0; left: 0; right: 0; bottom: 0;
     background: rgba(0,0,0,0.5);
     display: flex;
@@ -194,7 +196,9 @@ const STYLES = `
     border: 1px solid var(--color-border);
     border-radius: var(--radius-lg);
     padding: var(--space-5);
-    width: 300px;
+    width: min(340px, calc(100vw - 32px));
+    max-height: calc(100vh - 32px);
+    overflow-y: auto;
     display: flex;
     flex-direction: column;
     gap: var(--space-4);
@@ -248,6 +252,24 @@ const STYLES = `
     border: none;
     color: #fff;
   }
+
+  .links-tools { display: flex; align-items: center; gap: 8px; padding: 10px var(--space-4); flex-shrink: 0; border-bottom: 1px solid var(--color-border); }
+  .links-tools__filter { min-width: 0; flex: 1; padding: 6px 8px; border: 1px solid var(--color-border); border-radius: var(--radius-md); color: var(--color-text); background: var(--color-bg-secondary); font: inherit; font-size: var(--font-size-xs); }
+  .links-tools button { white-space: nowrap; cursor: pointer; }
+  .link-group { margin-bottom: 18px; }
+  .link-group__header { display: flex; align-items: center; gap: 6px; margin-bottom: 8px; }
+  .link-group__title { flex: 1; min-width: 0; font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); color: var(--color-text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .link-group__count:last-child { margin-right: 6px; }
+  .link-group__count { color: var(--color-text-tertiary); font-size: var(--font-size-xs); }
+  .link-group__open { padding: 5px 8px; border-radius: var(--radius-sm); background: var(--color-primary-soft); color: var(--color-primary); font-size: var(--font-size-xs); white-space: nowrap; cursor: pointer; }
+  .link-group__open:disabled { opacity: .5; cursor: wait; }
+  .link-item__symbol { width: 30px; height: 30px; flex: 0 0 30px; margin-right: 9px; display: grid; place-items: center; border-radius: var(--radius-md); background: var(--color-primary-soft); color: var(--color-primary); font-size: var(--font-size-sm); font-weight: var(--font-weight-semibold); }
+  .link-item:focus-visible, .link-group__open:focus-visible { outline: 2px solid var(--color-primary); outline-offset: 2px; }
+  .link-group-picker { display: flex; flex-direction: column; gap: 4px; max-height: 220px; overflow-y: auto; }
+  .link-group-picker__item { display: flex; align-items: center; gap: 8px; padding: 8px; border: 1px solid var(--color-border); border-radius: var(--radius-sm); color: var(--color-text); font-size: var(--font-size-sm); cursor: pointer; }
+  .link-group-picker__item span { min-width: 0; overflow: hidden; text-overflow: ellipsis; }
+  .link-group-picker__item input { flex-shrink: 0; accent-color: var(--color-primary); }
+  .link-modal__hint { margin: 0; color: var(--color-text-secondary); font-size: var(--font-size-xs); line-height: 1.5; }
 `;
 
 export async function createLinksView(): Promise<HTMLElement> {
@@ -288,12 +310,10 @@ export async function createLinksView(): Promise<HTMLElement> {
   const selectBtn = document.createElement('button');
   selectBtn.className = 'links-view__select-btn';
   selectBtn.textContent = 'Selecionar';
-  header.appendChild(selectBtn);
 
   const deleteSelectedBtn = document.createElement('button');
   deleteSelectedBtn.className = 'links-view__select-btn links-view__select-btn--danger';
   deleteSelectedBtn.style.display = 'none';
-  header.appendChild(deleteSelectedBtn);
 
   container.appendChild(header);
 
@@ -309,6 +329,24 @@ export async function createLinksView(): Promise<HTMLElement> {
   });
   container.appendChild(searchBar);
 
+  let currentGroup = '*';
+  const tools = document.createElement('div');
+  tools.className = 'links-tools';
+  const groupFilter = document.createElement('select');
+  groupFilter.className = 'links-tools__filter';
+  groupFilter.setAttribute('aria-label', 'Filtrar por grupo');
+  groupFilter.addEventListener('change', () => {
+    currentGroup = groupFilter.value;
+    void renderLinks();
+  });
+  const newGroupBtn = document.createElement('button');
+  newGroupBtn.className = 'links-view__select-btn';
+  newGroupBtn.textContent = '+ Grupo';
+  newGroupBtn.title = 'Criar grupo de links';
+  newGroupBtn.addEventListener('click', () => void showGroupModal());
+  tools.append(groupFilter, newGroupBtn, selectBtn, deleteSelectedBtn);
+  container.appendChild(tools);
+
   // ─── Content ─────────────────────────────────────────────────────────
   const content = document.createElement('div');
   content.className = 'links-view__content';
@@ -319,6 +357,8 @@ export async function createLinksView(): Promise<HTMLElement> {
   const updateSelectionHeader = () => {
     selectBtn.textContent = selectionMode ? 'Cancelar' : 'Selecionar';
     addBtn.style.display = selectionMode ? 'none' : '';
+    newGroupBtn.style.display = selectionMode ? 'none' : '';
+    groupFilter.style.display = selectionMode ? 'none' : '';
     deleteSelectedBtn.style.display = selectionMode ? '' : 'none';
     deleteSelectedBtn.textContent = `Excluir (${selectedLinkIds.size})`;
     deleteSelectedBtn.disabled = selectedLinkIds.size === 0;
@@ -348,14 +388,43 @@ export async function createLinksView(): Promise<HTMLElement> {
     await renderLinks();
   });
 
+  let renderRevision = 0;
   const renderLinks = async () => {
-    content.innerHTML = '';
-    allLinks = await LinksRepo.getAllLinks();
+    const revision = ++renderRevision;
+    const links = await LinksRepo.getAllLinks();
+    if (revision !== renderRevision) {
+      return;
+    }
+    allLinks = links;
+    content.replaceChildren();
+    const groups = [
+      ...new Set(
+        allLinks.map((link) => link.groupName).filter((name): name is string => Boolean(name))
+      )
+    ];
+    groupFilter.replaceChildren();
+    for (const [value, label] of [
+      ['*', `Todos os links (${allLinks.length})`],
+      ['', 'Sem grupo'],
+      ...groups.map((name) => [name, name])
+    ]) {
+      const option = document.createElement('option');
+      option.value = value!;
+      option.textContent = label!;
+      groupFilter.appendChild(option);
+    }
+    if (currentGroup !== '*' && currentGroup !== '' && !groups.includes(currentGroup)) {
+      currentGroup = '*';
+    }
+    groupFilter.value = currentGroup;
+    groupFilter.title = `${allLinks.length} links · ${groups.length} ${groups.length === 1 ? 'grupo' : 'grupos'}`;
 
     const filteredLinks = allLinks.filter(
       (link) =>
-        link.title.toLowerCase().includes(currentQuery.toLowerCase()) ||
-        link.url.toLowerCase().includes(currentQuery.toLowerCase())
+        (currentGroup === '*' || (link.groupName ?? '') === currentGroup) &&
+        `${link.title} ${link.url} ${link.groupName ?? ''}`
+          .toLocaleLowerCase('pt-BR')
+          .includes(currentQuery.trim().toLocaleLowerCase('pt-BR'))
     );
 
     if (allLinks.length === 0) {
@@ -382,6 +451,58 @@ export async function createLinksView(): Promise<HTMLElement> {
       return;
     }
 
+    const sections = new Map<string, HTMLElement>();
+    for (const name of [...groups, '']) {
+      const visible = filteredLinks.filter((link) => (link.groupName ?? '') === name);
+      if (!visible.length) {
+        continue;
+      }
+      const section = document.createElement('section');
+      section.className = 'link-group';
+      const groupHeader = document.createElement('div');
+      groupHeader.className = 'link-group__header';
+      const label = document.createElement('span');
+      label.className = 'link-group__title';
+      label.textContent = name || 'Sem grupo';
+      label.title = label.textContent;
+      const count = document.createElement('span');
+      count.className = 'link-group__count';
+      count.textContent = String(visible.length);
+      groupHeader.append(label, count);
+      if (name && !selectionMode) {
+        const members = allLinks.filter((link) => link.groupName === name);
+        const openBtn = document.createElement('button');
+        openBtn.className = 'link-group__open';
+        openBtn.textContent = 'Abrir todos';
+        openBtn.title = `Abrir os ${members.length} links de ${name} em novas abas`;
+        openBtn.addEventListener('click', async () => {
+          openBtn.disabled = true;
+          openBtn.textContent = 'Abrindo…';
+          try {
+            const { opened, failed } = await openLinkGroup(members);
+            emit('toast', {
+              message: `${opened} link(s) aberto(s)${failed ? ` · ${failed} não puderam ser abertos` : ''}`,
+              type: failed ? 'error' : 'success'
+            });
+            await renderLinks();
+          } finally {
+            openBtn.disabled = false;
+            openBtn.textContent = 'Abrir todos';
+          }
+        });
+        const editGroupBtn = document.createElement('button');
+        editGroupBtn.className = 'link-btn';
+        editGroupBtn.textContent = '⋯';
+        editGroupBtn.title = `Editar grupo ${name}`;
+        editGroupBtn.setAttribute('aria-label', editGroupBtn.title);
+        editGroupBtn.addEventListener('click', () => void showGroupModal(name));
+        groupHeader.append(openBtn, editGroupBtn);
+      }
+      section.appendChild(groupHeader);
+      content.appendChild(section);
+      sections.set(name, section);
+    }
+
     filteredLinks.forEach((link) => {
       const item = document.createElement('div');
       item.className = 'link-item';
@@ -404,6 +525,11 @@ export async function createLinksView(): Promise<HTMLElement> {
         item.appendChild(checkbox);
       }
 
+      const symbol = document.createElement('span');
+      symbol.className = 'link-item__symbol';
+      symbol.setAttribute('aria-hidden', 'true');
+      symbol.textContent = link.title.charAt(0).toLocaleUpperCase('pt-BR');
+      item.appendChild(symbol);
       const info = document.createElement('div');
       info.className = 'link-item__info';
 
@@ -414,13 +540,16 @@ export async function createLinksView(): Promise<HTMLElement> {
 
       const urlEl = document.createElement('div');
       urlEl.className = 'link-item__url';
-      urlEl.textContent = link.url;
+      const normalizedUrl = normalizeHttpUrl(link.url);
+      urlEl.textContent = normalizedUrl ? new URL(normalizedUrl).host : link.url;
+      urlEl.title = link.url;
       info.appendChild(urlEl);
 
       const usageEl = document.createElement('span');
       usageEl.className = 'link-item__usage';
       const updateUsageLabel = (count: number) => {
         usageEl.textContent = `${count} ${count === 1 ? 'uso' : 'usos'}`;
+        usageEl.hidden = count === 0;
       };
       const recordUsage = async () => {
         const count = await LinksRepo.incrementUsageCount(link.id);
@@ -434,6 +563,16 @@ export async function createLinksView(): Promise<HTMLElement> {
 
       item.appendChild(info);
 
+      if (!selectionMode) {
+        item.tabIndex = 0;
+        item.setAttribute('role', 'link');
+        item.setAttribute('aria-label', `Abrir ${link.title}`);
+        item.addEventListener('keydown', (event) => {
+          if (event.target === item && event.key === 'Enter') {
+            item.click();
+          }
+        });
+      }
       item.addEventListener('click', () => {
         if (selectionMode) {
           if (selectedLinkIds.has(link.id)) {
@@ -512,7 +651,7 @@ export async function createLinksView(): Promise<HTMLElement> {
       if (!selectionMode) {
         item.appendChild(actions);
       }
-      content.appendChild(item);
+      sections.get(link.groupName ?? '')!.appendChild(item);
     });
   };
 
@@ -556,6 +695,22 @@ export async function createLinksView(): Promise<HTMLElement> {
     urlInput.setAttribute('aria-label', 'Endereço do link');
     urlInput.value = linkToEdit?.url || '';
     modalContent.appendChild(urlInput);
+    const groupSelect = document.createElement('select');
+    groupSelect.className = 'link-modal__input';
+    groupSelect.setAttribute('aria-label', 'Grupo do link');
+    const names = [
+      ...new Set(
+        allLinks.map((link) => link.groupName).filter((name): name is string => Boolean(name))
+      )
+    ];
+    for (const name of ['', ...names]) {
+      const option = document.createElement('option');
+      option.value = name;
+      option.textContent = name || 'Sem grupo';
+      groupSelect.appendChild(option);
+    }
+    groupSelect.value = linkToEdit?.groupName ?? (currentGroup === '*' ? '' : currentGroup);
+    modalContent.appendChild(groupSelect);
 
     const actionsRow = document.createElement('div');
     actionsRow.className = 'link-modal__actions';
@@ -585,10 +740,14 @@ export async function createLinksView(): Promise<HTMLElement> {
 
       try {
         if (linkToEdit) {
-          await LinksRepo.updateLink(linkToEdit.id, { title, url });
+          await LinksRepo.updateLink(linkToEdit.id, {
+            title,
+            url,
+            groupName: groupSelect.value || null
+          });
           emit('toast', { message: 'Link atualizado', type: 'success' });
         } else {
-          await LinksRepo.createLink({ title, url });
+          await LinksRepo.createLink({ title, url, groupName: groupSelect.value || null });
           emit('toast', { message: 'Link adicionado', type: 'success' });
         }
         closeModal();
@@ -608,6 +767,144 @@ export async function createLinksView(): Promise<HTMLElement> {
     document.addEventListener('keydown', closeOnEscape);
 
     setTimeout(() => titleInput.focus(), 50);
+  };
+
+  const showGroupModal = async (previousName?: string) => {
+    const links = await LinksRepo.getAllLinks();
+    if (!links.length) {
+      emit('toast', { message: 'Adicione um link antes de criar um grupo.', type: 'info' });
+      return;
+    }
+    const selected = new Set(
+      links.filter((link) => link.groupName === previousName && previousName).map((link) => link.id)
+    );
+    const modal = document.createElement('div');
+    modal.className = 'link-modal';
+    modal.setAttribute('role', 'dialog');
+    modal.setAttribute('aria-modal', 'true');
+    modal.setAttribute('aria-labelledby', 'link-group-modal-title');
+    const box = document.createElement('div');
+    box.className = 'link-modal__content';
+    const title = document.createElement('div');
+    title.className = 'link-modal__title';
+    title.id = 'link-group-modal-title';
+    title.textContent = previousName ? 'Editar grupo' : 'Novo grupo';
+    const input = document.createElement('input');
+    input.className = 'link-modal__input';
+    input.placeholder = 'Ex.: Início do atendimento';
+    input.maxLength = 60;
+    input.value = previousName ?? '';
+    input.setAttribute('aria-label', 'Nome do grupo');
+    const hint = document.createElement('p');
+    hint.className = 'link-modal__hint';
+    hint.textContent =
+      'Selecione os links para abrir juntos. Cada link pertence a um grupo; selecionar um link de outro grupo move esse link para cá.';
+    const picker = document.createElement('div');
+    picker.className = 'link-group-picker';
+    for (const link of links) {
+      const label = document.createElement('label');
+      label.className = 'link-group-picker__item';
+      const checkbox = document.createElement('input');
+      checkbox.type = 'checkbox';
+      checkbox.checked = selected.has(link.id);
+      checkbox.addEventListener('change', () => {
+        if (checkbox.checked) {
+          selected.add(link.id);
+        } else {
+          selected.delete(link.id);
+        }
+      });
+      const text = document.createElement('span');
+      text.textContent = `${link.title}${link.groupName ? ` · ${link.groupName}` : ''}`;
+      label.append(checkbox, text);
+      picker.appendChild(label);
+    }
+    const close = () => {
+      modal.remove();
+      document.removeEventListener('keydown', onKeydown);
+      newGroupBtn.focus();
+    };
+    const onKeydown = (event: KeyboardEvent) => {
+      if (event.key === 'Escape') {
+        close();
+      }
+    };
+    const actions = document.createElement('div');
+    actions.className = 'link-modal__actions';
+    const cancel = document.createElement('button');
+    cancel.className = 'link-modal__btn link-modal__btn--cancel';
+    cancel.textContent = 'Cancelar';
+    cancel.onclick = close;
+    const save = document.createElement('button');
+    save.className = 'link-modal__btn link-modal__btn--save';
+    save.textContent = 'Salvar';
+    save.onclick = async () => {
+      const name = LinksRepo.normalizeLinkTitle(input.value).slice(0, 60);
+      if (!name || !selected.size) {
+        emit('toast', {
+          message: 'Informe um nome e selecione pelo menos um link.',
+          type: 'error'
+        });
+        return;
+      }
+      if (
+        links.some(
+          (link) =>
+            link.groupName &&
+            link.groupName !== previousName &&
+            link.groupName.toLocaleLowerCase('pt-BR') === name.toLocaleLowerCase('pt-BR')
+        )
+      ) {
+        emit('toast', {
+          message: 'Já existe um grupo com esse nome. Edite o grupo existente.',
+          type: 'error'
+        });
+        return;
+      }
+      save.disabled = true;
+      try {
+        await LinksRepo.saveLinkGroup(name, [...selected], previousName);
+        if (currentGroup === previousName) {
+          currentGroup = name;
+        }
+        close();
+        await renderLinks();
+        emit('toast', { message: 'Grupo salvo!', type: 'success' });
+      } catch {
+        emit('toast', { message: 'Não foi possível salvar o grupo.', type: 'error' });
+        save.disabled = false;
+      }
+    };
+    if (previousName) {
+      const remove = document.createElement('button');
+      remove.className = 'link-modal__btn links-view__select-btn--danger';
+      remove.textContent = 'Desagrupar';
+      remove.onclick = async () => {
+        const confirmed = await showConfirmModal({
+          title: 'Desagrupar links',
+          message: `Remover o grupo "${previousName}"? Os links serão mantidos em Sem grupo.`,
+          confirmLabel: 'Desagrupar',
+          cancelLabel: 'Cancelar'
+        });
+        if (!confirmed) {
+          return;
+        }
+        try {
+          await LinksRepo.removeLinkGroup(previousName);
+          close();
+          await renderLinks();
+        } catch {
+          emit('toast', { message: 'Não foi possível remover o grupo.', type: 'error' });
+        }
+      };
+      actions.appendChild(remove);
+    }
+    actions.append(cancel, save);
+    box.append(title, input, hint, picker, actions);
+    modal.appendChild(box);
+    container.appendChild(modal);
+    document.addEventListener('keydown', onKeydown);
+    input.focus();
   };
 
   await renderLinks();

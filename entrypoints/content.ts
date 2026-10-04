@@ -7,46 +7,14 @@ import {
 import { extractTemplateVariables, renderTemplateVariables } from '../src/core/templates/variables';
 import { filterPopupScripts, mountPopupSearchInput } from '../src/core/search/popup-search';
 import { captureTextFromField } from '../src/core/content/field-capture';
-import { createReminderAlertController } from '../src/core/content/reminder-alert';
-import type { Reminder } from '../src/core/reminders/reminder.types';
+import { installReminderDelivery } from '../src/core/content/reminder-delivery';
 
 export default defineContentScript({
   matches: ['<all_urls>'],
   async main() {
     console.log('[AtenaFlow] Content Script carregado.');
 
-    const reminderAlerts = createReminderAlertController((type, reminderId) =>
-      chrome.runtime.sendMessage({ type, reminderId })
-    );
-    chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-      if (message?.type === 'SHOW_REMINDER_ALERT' && message.reminder) {
-        reminderAlerts.enqueue(message.reminder as Reminder);
-        sendResponse({ accepted: true });
-      }
-    });
-    let pendingRecoveryRequested = false;
-    const reportActiveReminderPage = () => {
-      if (document.visibilityState !== 'visible') {
-        return;
-      }
-      void chrome.runtime.sendMessage({ type: 'REMINDER_PAGE_ACTIVE' }).catch(() => undefined);
-      if (!pendingRecoveryRequested) {
-        pendingRecoveryRequested = true;
-        chrome.runtime
-          .sendMessage({ type: 'GET_PENDING_REMINDERS', force: true })
-          .then((response) =>
-            (response?.reminders ?? []).forEach((reminder: Reminder) =>
-              reminderAlerts.enqueue(reminder)
-            )
-          )
-          .catch(() => {
-            pendingRecoveryRequested = false;
-          });
-      }
-    };
-    reportActiveReminderPage();
-    document.addEventListener('visibilitychange', reportActiveReminderPage);
-    window.addEventListener('focus', reportActiveReminderPage);
+    installReminderDelivery();
     let currentFocusedElement: HTMLElement | null = null;
     let iconElement: HTMLElement | null = null;
     let popupElement: HTMLElement | null = null;

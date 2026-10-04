@@ -2,6 +2,7 @@ import { defineBackground } from 'wxt/sandbox';
 import {
   completeReminder,
   getPendingReminders,
+  getReminders,
   markReminderDisplayed,
   processReminderAlarm,
   reconcileReminderAlarms,
@@ -9,6 +10,7 @@ import {
   REMINDER_SNOOZE_PREFIX,
   snoozeReminder
 } from '../src/core/reminders/reminder.service';
+import type { Reminder } from '../src/core/reminders/reminder.types';
 import { createSerialTaskQueue } from '../src/core/reminders/reminder.queue';
 
 const LAST_REMINDER_PAGE_TAB_KEY = 'atenaflow-last-reminder-page-tab';
@@ -17,7 +19,7 @@ async function rememberReminderPage(tabId: number): Promise<void> {
   await chrome.storage.session.set({ [LAST_REMINDER_PAGE_TAB_KEY]: tabId });
 }
 
-async function sendReminderToTab(tabId: number, reminder: { id: string }): Promise<boolean> {
+async function sendReminderToTab(tabId: number, reminder: Reminder): Promise<boolean> {
   try {
     const response = await chrome.tabs.sendMessage(tabId, {
       type: 'SHOW_REMINDER_ALERT',
@@ -29,13 +31,21 @@ async function sendReminderToTab(tabId: number, reminder: { id: string }): Promi
   }
 }
 
-async function showReminderOnActiveTab(reminder: { id: string }): Promise<boolean> {
+async function showReminderOnActiveTab(reminder: Reminder): Promise<boolean> {
+  // A janela do AtenaFlow também pode apresentar o aviso quando está em foco.
+  try {
+    const response = await chrome.runtime.sendMessage({ type: 'SHOW_REMINDER_ALERT', reminder });
+    if (response?.accepted === true) {
+      return true;
+    }
+  } catch {
+    // A janela da extensão pode estar fechada.
+  }
   // Prioriza a última página compatível que esteve visível antes de o usuário
   // voltar para a janela dedicada do AtenaFlow.
   const storedTarget = await chrome.storage.session.get(LAST_REMINDER_PAGE_TAB_KEY);
   const preferredTabId = storedTarget[LAST_REMINDER_PAGE_TAB_KEY];
   if (typeof preferredTabId === 'number' && (await sendReminderToTab(preferredTabId, reminder))) {
-    await markReminderDisplayed(reminder.id);
     return true;
   }
 
@@ -47,7 +57,6 @@ async function showReminderOnActiveTab(reminder: { id: string }): Promise<boolea
   for (const tab of candidates) {
     if (await sendReminderToTab(tab.id!, reminder)) {
       await rememberReminderPage(tab.id!);
-      await markReminderDisplayed(reminder.id);
       return true;
     }
   }
@@ -60,7 +69,11 @@ async function handleReminderAlarm(alarm: chrome.alarms.Alarm): Promise<void> {
   if (!alarm.name.startsWith(prefix)) {
     return;
   }
-  const reminder = await processReminderAlarm(alarm.name.slice(prefix.length), isSnooze);
+  const reminder = await processReminderAlarm(
+    alarm.name.slice(prefix.length),
+    isSnooze,
+    alarm.scheduledTime
+  );
   if (reminder) {
     await showReminderOnActiveTab(reminder);
     void chrome.runtime.sendMessage({ type: 'REMINDERS_CHANGED' }).catch(() => undefined);
@@ -80,8 +93,20 @@ export default defineBackground(() => {
     await enqueueReminderAlarm(alarm);
   });
 
-  chrome.runtime.onStartup.addListener(() => void reconcileReminderAlarms());
-  chrome.runtime.onInstalled.addListener(() => void reconcileReminderAlarms());
+  const recoverReminders = async () => {
+    await reconcileReminderAlarms();
+    for (const reminder of await getPendingReminders()) {
+      await showReminderOnActiveTab(reminder);
+    }
+  };
+  const recover = () =>
+    void recoverReminders().catch((error) =>
+      console.error('[AtenaFlow] Falha ao recuperar lembretes:', error)
+    );
+  // Também executa quando o worker acorda; alarmes podem desaparecer entre sessões.
+  recover();
+  chrome.runtime.onStartup.addListener(recover);
+  chrome.runtime.onInstalled.addListener(recover);
   chrome.action.onClicked.addListener(async () => {
     // Busca o ID na sessão (não se perde se o Service Worker dormir)
     const data = await chrome.storage.session.get(STORAGE_KEY);
@@ -125,25 +150,56 @@ export default defineBackground(() => {
 
   // Listener para mensagens do Content Script
   chrome.runtime.onMessage.addListener((message, _sender, sendResponse) => {
-    if (message.type === 'REMINDER_PAGE_ACTIVE' && _sender.tab?.id !== undefined) {
-      rememberReminderPage(_sender.tab.id).then(() => sendResponse({ success: true }));
+    if (message.type === 'REMINDER_PAGE_ACTIVE') {
+      const remember =
+        _sender.tab?.id !== undefined ? rememberReminderPage(_sender.tab.id) : Promise.resolve();
+      remember
+        .then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 
     if (message.type === 'GET_PENDING_REMINDERS') {
-      getPendingReminders(message.force === true ? 0 : undefined).then((reminders) =>
-        sendResponse({ reminders })
-      );
+      reconcileReminderAlarms()
+        .then(() => getPendingReminders())
+        .then((reminders) => sendResponse({ reminders }))
+        .catch(() => sendResponse({ reminders: [] }));
+      return true;
+    }
+
+    if (message.type === 'GET_REMINDER_TO_DISPLAY') {
+      getReminders()
+        .then((reminders) => {
+          const reminder = reminders.find(
+            (item) =>
+              item.id === message.reminderId &&
+              item.pendingSince !== null &&
+              !item.snoozedUntil &&
+              item.lastTriggeredAt === message.occurrence
+          );
+          sendResponse({ reminder: reminder ?? null });
+        })
+        .catch(() => sendResponse({ reminder: null }));
+      return true;
+    }
+    if (message.type === 'REMINDER_DISPLAYED') {
+      markReminderDisplayed(message.reminderId, message.occurrence)
+        .then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 
     if (message.type === 'COMPLETE_REMINDER' || message.type === 'DISMISS_REMINDER') {
-      completeReminder(message.reminderId).then(() => sendResponse({ success: true }));
+      completeReminder(message.reminderId)
+        .then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
 
     if (message.type === 'SNOOZE_REMINDER') {
-      snoozeReminder(message.reminderId, 5).then(() => sendResponse({ success: true }));
+      snoozeReminder(message.reminderId, 5)
+        .then(() => sendResponse({ success: true }))
+        .catch(() => sendResponse({ success: false }));
       return true;
     }
     if (message.type === 'GET_ACTIVE_SCRIPTS') {

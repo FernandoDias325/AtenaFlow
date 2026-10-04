@@ -104,6 +104,8 @@ export interface Link {
   title: string;
   /** URL destino. */
   url: string;
+  /** Nome do grupo de abertura, ou null para links avulsos. */
+  groupName?: string | null;
   /** Posição de ordenação. */
   order: number;
   /** Timestamp de criação (epoch ms). */

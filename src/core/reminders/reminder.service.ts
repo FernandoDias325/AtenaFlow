@@ -5,6 +5,22 @@ export const REMINDERS_STORAGE_KEY = 'atenaflow-reminders';
 export const REMINDER_ALARM_PREFIX = 'atenaflow-reminder:';
 export const REMINDER_SNOOZE_PREFIX = 'atenaflow-reminder-snooze:';
 
+// A janela da extensão e o worker podem gravar ao mesmo tempo.
+// O lock protege todo o ciclo ler → alterar → salvar entre esses contextos.
+let mutationQueue: Promise<unknown> = Promise.resolve();
+async function mutate<T>(task: () => Promise<T>): Promise<T> {
+  if (typeof navigator !== 'undefined' && navigator.locks?.request) {
+    return await navigator.locks.request('atenaflow-reminders-write', task);
+  }
+  const result = mutationQueue.then(task, task);
+  mutationQueue = result.catch(() => undefined);
+  return result;
+}
+
+function timestamp(value: unknown): number | null {
+  return typeof value === 'number' && Number.isFinite(value) ? value : null;
+}
+
 function createId(): string {
   return crypto.randomUUID?.() ?? `reminder-${Date.now()}-${Math.random().toString(16).slice(2)}`;
 }
@@ -39,7 +55,11 @@ export async function getReminders(): Promise<Reminder[]> {
     .map((item) => ({
       ...item,
       title: normalizeReminderTitle(item.title),
-      snoozedUntil: typeof item.snoozedUntil === 'number' ? item.snoozedUntil : null
+      nextTriggerAt: timestamp(item.nextTriggerAt),
+      lastTriggeredAt: timestamp(item.lastTriggeredAt),
+      pendingSince: timestamp(item.pendingSince),
+      lastDisplayedAt: timestamp(item.lastDisplayedAt),
+      snoozedUntil: timestamp(item.snoozedUntil)
     }));
 }
 
@@ -47,7 +67,7 @@ async function writeReminders(reminders: Reminder[]): Promise<void> {
   await chrome.storage.local.set({ [REMINDERS_STORAGE_KEY]: reminders });
 }
 
-export async function saveReminder(draft: ReminderDraft, id?: string): Promise<Reminder> {
+async function saveReminderUnlocked(draft: ReminderDraft, id?: string): Promise<Reminder> {
   const reminders = await getReminders();
   const existing = id ? reminders.find((reminder) => reminder.id === id) : undefined;
   const now = Date.now();
@@ -76,10 +96,14 @@ export async function saveReminder(draft: ReminderDraft, id?: string): Promise<R
     date: draft.date,
     daysOfWeek: normalizedDays,
     enabled,
-    nextTriggerAt: enabled ? calculateNextTrigger(schedule, new Date(now)) : null,
+    nextTriggerAt: enabled
+      ? existing?.enabled && !scheduleChanged && existing.nextTriggerAt !== null
+        ? existing.nextTriggerAt
+        : calculateNextTrigger(schedule, new Date(now))
+      : null,
     lastTriggeredAt: existing?.lastTriggeredAt ?? null,
-    pendingSince: scheduleChanged ? null : (existing?.pendingSince ?? null),
-    lastDisplayedAt: scheduleChanged ? null : (existing?.lastDisplayedAt ?? null),
+    pendingSince: scheduleChanged || !enabled ? null : (existing?.pendingSince ?? null),
+    lastDisplayedAt: scheduleChanged || !enabled ? null : (existing?.lastDisplayedAt ?? null),
     snoozedUntil: scheduleChanged || !enabled ? null : (existing?.snoozedUntil ?? null),
     createdAt: existing?.createdAt ?? now,
     updatedAt: now
@@ -95,7 +119,7 @@ export async function saveReminder(draft: ReminderDraft, id?: string): Promise<R
   return reminder;
 }
 
-export async function deleteReminder(id: string): Promise<void> {
+async function deleteReminderUnlocked(id: string): Promise<void> {
   await writeReminders((await getReminders()).filter((reminder) => reminder.id !== id));
   await chrome.alarms.clear(`${REMINDER_ALARM_PREFIX}${id}`);
   await chrome.alarms.clear(`${REMINDER_SNOOZE_PREFIX}${id}`);
@@ -109,64 +133,127 @@ export async function syncReminderAlarm(reminder: Reminder): Promise<void> {
   }
   const snoozeAlarmName = `${REMINDER_SNOOZE_PREFIX}${reminder.id}`;
   await chrome.alarms.clear(snoozeAlarmName);
-  if (reminder.enabled && reminder.snoozedUntil && reminder.snoozedUntil > Date.now()) {
+  if (reminder.snoozedUntil && reminder.snoozedUntil > Date.now()) {
     await chrome.alarms.create(snoozeAlarmName, { when: reminder.snoozedUntil });
   }
 }
 
-export async function reconcileReminderAlarms(): Promise<void> {
+async function reconcileReminderAlarmsUnlocked(): Promise<void> {
   const alarmsApi = (chrome as unknown as { alarms?: typeof chrome.alarms }).alarms;
   if (!alarmsApi) {
     return;
   }
+  const now = Date.now();
   const reminders = await getReminders();
-  const validNames = new Set(reminders.map((item) => `${REMINDER_ALARM_PREFIX}${item.id}`));
-  const validSnoozeNames = new Set(reminders.map((item) => `${REMINDER_SNOOZE_PREFIX}${item.id}`));
   const existing = await alarmsApi.getAll();
-  await Promise.all(
-    existing
-      .filter(
-        (alarm) =>
-          (alarm.name.startsWith(REMINDER_SNOOZE_PREFIX) && !validSnoozeNames.has(alarm.name)) ||
-          (alarm.name.startsWith(REMINDER_ALARM_PREFIX) &&
-            !alarm.name.startsWith(REMINDER_SNOOZE_PREFIX) &&
-            !validNames.has(alarm.name))
-      )
-      .map((alarm) => alarmsApi.clear(alarm.name))
-  );
-  await Promise.all(reminders.map(syncReminderAlarm));
+  const expected = new Map<string, number>();
+  let changed = false;
+  for (const reminder of reminders) {
+    const snoozeDue =
+      reminder.snoozedUntil !== null &&
+      reminder.snoozedUntil !== undefined &&
+      reminder.snoozedUntil <= now;
+    const regularDue =
+      reminder.enabled && reminder.nextTriggerAt !== null && reminder.nextTriggerAt <= now;
+    if (snoozeDue || regularDue) {
+      triggerReminder(reminder, now, snoozeDue, regularDue);
+      changed = true;
+    }
+    // Recalcula os horários futuros no fuso local atual, inclusive após troca de fuso.
+    if (reminder.enabled && (reminder.nextTriggerAt === null || reminder.nextTriggerAt > now)) {
+      const next = calculateNextTrigger(reminder, new Date(now));
+      if (next !== reminder.nextTriggerAt) {
+        reminder.nextTriggerAt = next;
+        changed = true;
+      }
+      if (next === null) {
+        reminder.enabled = false;
+        changed = true;
+      }
+    }
+    if (reminder.enabled && reminder.nextTriggerAt !== null) {
+      expected.set(`${REMINDER_ALARM_PREFIX}${reminder.id}`, reminder.nextTriggerAt);
+    }
+    if (reminder.snoozedUntil && reminder.snoozedUntil > now) {
+      expected.set(`${REMINDER_SNOOZE_PREFIX}${reminder.id}`, reminder.snoozedUntil);
+    }
+  }
+  if (changed) {
+    await writeReminders(reminders);
+  }
+  for (const alarm of existing) {
+    if (
+      (alarm.name.startsWith(REMINDER_ALARM_PREFIX) ||
+        alarm.name.startsWith(REMINDER_SNOOZE_PREFIX)) &&
+      !expected.has(alarm.name)
+    ) {
+      await alarmsApi.clear(alarm.name);
+    }
+  }
+  for (const [name, when] of expected) {
+    if (!existing.some((alarm) => alarm.name === name && alarm.scheduledTime === when)) {
+      await alarmsApi.create(name, { when });
+    }
+  }
 }
 
-export async function processReminderAlarm(id: string, snoozed = false): Promise<Reminder | null> {
-  const reminders = await getReminders();
-  const reminder = reminders.find((item) => item.id === id);
-  if (!reminder || !reminder.enabled) {
-    return null;
-  }
-  const now = Date.now();
-  reminder.pendingSince = reminder.pendingSince ?? now;
+function triggerReminder(
+  reminder: Reminder,
+  now: number,
+  snoozed: boolean,
+  regular: boolean
+): void {
+  const dueAt = snoozed ? reminder.snoozedUntil : reminder.nextTriggerAt;
+  reminder.pendingSince = reminder.pendingSince ?? dueAt ?? now;
   reminder.lastTriggeredAt = now;
-  // Só será preenchido depois que uma página confirmar que recebeu o cartão.
   reminder.lastDisplayedAt = null;
   if (snoozed) {
     reminder.snoozedUntil = null;
   }
-  if (!snoozed) {
-    reminder.nextTriggerAt = calculateNextTrigger(reminder, new Date(now + 1_000));
-    if (!reminder.nextTriggerAt) {
+  if (regular) {
+    reminder.nextTriggerAt = calculateNextTrigger(reminder, new Date(now));
+    if (reminder.nextTriggerAt === null) {
       reminder.enabled = false;
     }
   }
   reminder.updatedAt = now;
+}
+
+async function processReminderAlarmUnlocked(
+  id: string,
+  snoozed = false,
+  scheduledTime?: number
+): Promise<Reminder | null> {
+  const reminders = await getReminders();
+  const reminder = reminders.find((item) => item.id === id);
+  if (!reminder || (!snoozed && !reminder.enabled)) {
+    return null;
+  }
+  const now = Date.now();
+  const dueAt = snoozed ? reminder.snoozedUntil : reminder.nextTriggerAt;
+  // Ignore um alarme antigo após edição/pausa, ou entregue antes do horário salvo.
+  if (
+    dueAt === null ||
+    dueAt === undefined ||
+    dueAt > now ||
+    (scheduledTime !== undefined && scheduledTime !== dueAt)
+  ) {
+    return null;
+  }
+  triggerReminder(reminder, now, snoozed, !snoozed);
   await writeReminders(reminders);
   await syncReminderAlarm(reminder);
   return reminder;
 }
 
-export async function markReminderDisplayed(id: string): Promise<void> {
+async function markReminderDisplayedUnlocked(id: string, occurrence?: number): Promise<void> {
   const reminders = await getReminders();
   const reminder = reminders.find((item) => item.id === id);
-  if (!reminder || reminder.pendingSince === null) {
+  if (
+    !reminder ||
+    reminder.pendingSince === null ||
+    (occurrence !== undefined && reminder.lastTriggeredAt !== occurrence)
+  ) {
     return;
   }
   reminder.lastDisplayedAt = Date.now();
@@ -174,7 +261,7 @@ export async function markReminderDisplayed(id: string): Promise<void> {
   await writeReminders(reminders);
 }
 
-export async function completeReminder(id: string): Promise<void> {
+async function completeReminderUnlocked(id: string): Promise<void> {
   const reminders = await getReminders();
   const reminder = reminders.find((item) => item.id === id);
   if (!reminder) {
@@ -188,10 +275,10 @@ export async function completeReminder(id: string): Promise<void> {
   await chrome.alarms.clear(`${REMINDER_SNOOZE_PREFIX}${id}`);
 }
 
-export async function snoozeReminder(id: string, minutes = 5): Promise<void> {
+async function snoozeReminderUnlocked(id: string, minutes = 5): Promise<void> {
   const reminders = await getReminders();
   const reminder = reminders.find((item) => item.id === id);
-  if (!reminder) {
+  if (!reminder || reminder.pendingSince === null || !Number.isFinite(minutes) || minutes <= 0) {
     return;
   }
   reminder.pendingSince = null;
@@ -208,11 +295,34 @@ export async function getPendingReminders(repeatAfterMs = 5 * 60_000): Promise<R
   const pending = reminders.filter(
     (reminder) =>
       reminder.pendingSince !== null &&
+      !reminder.snoozedUntil &&
       (reminder.lastDisplayedAt === null || now - reminder.lastDisplayedAt >= repeatAfterMs)
   );
-  if (pending.length) {
-    pending.forEach((reminder) => (reminder.lastDisplayedAt = now));
-    await writeReminders(reminders);
-  }
   return pending;
+}
+
+export function saveReminder(draft: ReminderDraft, id?: string): Promise<Reminder> {
+  return mutate(() => saveReminderUnlocked(draft, id));
+}
+export function deleteReminder(id: string): Promise<void> {
+  return mutate(() => deleteReminderUnlocked(id));
+}
+export function reconcileReminderAlarms(): Promise<void> {
+  return mutate(reconcileReminderAlarmsUnlocked);
+}
+export function processReminderAlarm(
+  id: string,
+  snoozed = false,
+  scheduledTime?: number
+): Promise<Reminder | null> {
+  return mutate(() => processReminderAlarmUnlocked(id, snoozed, scheduledTime));
+}
+export function markReminderDisplayed(id: string, occurrence?: number): Promise<void> {
+  return mutate(() => markReminderDisplayedUnlocked(id, occurrence));
+}
+export function completeReminder(id: string): Promise<void> {
+  return mutate(() => completeReminderUnlocked(id));
+}
+export function snoozeReminder(id: string, minutes = 5): Promise<void> {
+  return mutate(() => snoozeReminderUnlocked(id, minutes));
 }

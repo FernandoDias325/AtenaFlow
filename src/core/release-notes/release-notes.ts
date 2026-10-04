@@ -6,6 +6,33 @@ export interface ReleaseNote {
 }
 
 export const RELEASE_NOTES: Record<string, ReleaseNote[]> = {
+  '1.7.0': [
+    {
+      title: 'Grupos de links',
+      description:
+        'Organize seus links em grupos e use “Abrir todos” para acessar os links de um grupo com um clique.'
+    },
+    {
+      title: 'Links com uma visualização mais clara',
+      description:
+        'Identificação dos sites, filtros por grupo e controles com mais espaço para facilitar o acesso aos links.'
+    },
+    {
+      title: 'Bloco de notas mais prático',
+      description:
+        'O botão de nova nota fica sempre acessível à esquerda, as abas têm melhor contraste e recolher a barra de edição libera espaço para escrever.'
+    },
+    {
+      title: 'Correções nos lembretes',
+      description:
+        'Ajustes no agendamento, nas recorrências e no adiamento. Avisos pendentes são recuperados ao retomar o uso e aparecem na página ou janela da extensão em foco.'
+    },
+    {
+      title: 'Interface principal mais organizada',
+      description:
+        'Estatísticas e Configurações estão no menu “Mais opções”. As categorias e os controles da lista ganharam mais espaço.'
+    }
+  ],
   '1.6.0': [
     {
       title: 'Backup completo e seguro',
@@ -57,7 +84,7 @@ export const RELEASE_NOTES: Record<string, ReleaseNote[]> = {
 export function getCurrentVersion(): string {
   return typeof chrome !== 'undefined' && chrome.runtime?.getManifest
     ? chrome.runtime.getManifest().version
-    : '1.6.0';
+    : '1.7.0';
 }
 
 export async function shouldShowCurrentRelease(): Promise<boolean> {

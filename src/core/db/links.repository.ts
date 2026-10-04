@@ -134,3 +134,41 @@ export async function reorderLinks(linkIds: string[]): Promise<void> {
 
   await tx.done;
 }
+
+/** Atualiza a composição de um grupo em uma única transação, sem excluir links. */
+export async function saveLinkGroup(
+  name: string,
+  linkIds: string[],
+  previousName?: string
+): Promise<void> {
+  const groupName = normalizeLinkTitle(name).slice(0, 60);
+  if (!groupName || linkIds.length === 0) {
+    throw new Error('Informe o nome do grupo e selecione pelo menos um link.');
+  }
+  const db = await getDB();
+  const tx = db.transaction('links', 'readwrite');
+  const links = await tx.store.getAll();
+  const selected = new Set(linkIds);
+  for (const link of links) {
+    if (selected.has(link.id) && !link.deletedAt) {
+      link.groupName = groupName;
+      await tx.store.put(link);
+    } else if (previousName && link.groupName === previousName) {
+      link.groupName = null;
+      await tx.store.put(link);
+    }
+  }
+  await tx.done;
+}
+
+export async function removeLinkGroup(name: string): Promise<void> {
+  const db = await getDB();
+  const tx = db.transaction('links', 'readwrite');
+  for (const link of await tx.store.getAll()) {
+    if (link.groupName === name) {
+      link.groupName = null;
+      await tx.store.put(link);
+    }
+  }
+  await tx.done;
+}
